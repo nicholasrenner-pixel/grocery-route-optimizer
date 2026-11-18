@@ -1,15 +1,14 @@
 """
-FastAPI Server for Mobile Grocery Route Optimizer & Indoor Navigation Engine
+StoreNav Backend API - High-Performance Indoor Navigation & Recipe Suggestion Engine.
 Endpoints:
-- Multi-retailer layout ingestion (Walmart, Target, Costco)
-- A* pathfinding & Perishable-Aware TSP
-- Indoor positioning (BLE RSSI trilateration & real-time Blue Dot trajectory)
-- Nutritional macros & running cart totals
-- Smart Substitution & mid-shopping rerouting
-- Barcode UPC product scanner lookup
+- POST /api/route/optimize: Global TSP (Held-Karp Bitmask DP / 2-Opt) with orthogonal A* pathfinding.
+- POST /api/meals/suggest: Cart-aware smart meal & recipe recommendation engine.
+- GET  /api/store/layout: Store floorplan, aisles, obstacles, zones, entrance & checkout.
+- GET  /api/inventory: Full grocery catalog with nutritional macros and shelf coordinates.
 """
 
 import json
+import math
 import os
 from typing import Dict, List, Optional
 
@@ -17,21 +16,18 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from indoor_positioning import BLEBeacon, IndoorPositioningEngine, BlueDotSimulator
-from macro_engine import MacroEngine
-from routing_engine import (
-    AStarPathfinder,
-    ItemLocation,
-    PerishableConstrainedTSPSolver,
-    Point,
-    RetailerAPIAdapter,
-    load_multi_retailer_system,
+from routing import (
+    CELL_SIZE_FT,
+    AStarRouter,
+    GlobalTSPOptimizer,
+    TurnByTurnCompiler,
+    load_store_system,
 )
 
 app = FastAPI(
-    title="StoreNav: Indoor Grocery Navigation & Macro Engine API",
-    description="Mobile-first indoor positioning, macro optimization, and A* TSP store routing.",
-    version="2.0.0",
+    title="StoreNav Route & Meal Optimizer API",
+    description="Precision indoor grocery navigation engine with Held-Karp TSP, obstacle-free A*, and smart recipe suggestions.",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -42,231 +38,174 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-LAYOUT_FILE = os.path.join(os.path.dirname(__file__), "..", "store_layout_fargo.json")
-store_map, inventory, catalog_list, entrance, checkout, positioning_engine, active_store_data = load_multi_retailer_system(
-    LAYOUT_FILE, "walmart_supercenter_1594"
-)
-pathfinder = AStarPathfinder(store_map)
-tsp_solver = PerishableConstrainedTSPSolver(pathfinder)
-retailer_adapter = RetailerAPIAdapter(inventory)
+BASE_DIR = os.path.dirname(__file__)
+STORE_DATA_PATH = os.path.join(BASE_DIR, "store_data.json")
+RECIPES_PATH = os.path.join(BASE_DIR, "recipes.json")
+
+# Load store grid and recipes
+grid, items_dict, entrance_data, checkout_data, aisles_list = load_store_system(STORE_DATA_PATH)
+astar_router = AStarRouter(grid)
+tsp_optimizer = GlobalTSPOptimizer(astar_router)
+
+with open(RECIPES_PATH, "r", encoding="utf-8") as rf:
+    recipes_db = json.load(rf)
+
+with open(STORE_DATA_PATH, "r", encoding="utf-8") as sf:
+    full_store_raw = json.load(sf)
 
 
-# ----------------- Request Models -----------------
+# ----------------- Request / Response Models -----------------
 
 class OptimizeRouteRequest(BaseModel):
-    skus: List[str]
-    enforce_perishables_last: bool = True
-    current_user_location: Optional[Dict[str, int]] = None
-    collected_skus: Optional[List[str]] = None
+    store_id: str = "walmart_fargo_13th"
+    cart_item_ids: List[str]
+    perishables_last: bool = True
+    current_position: Optional[List[int]] = None
 
 
-class SubstituteRequest(BaseModel):
-    out_of_stock_sku: str
-    current_user_x: int
-    current_user_y: int
-    remaining_skus: List[str]
+class MealSuggestRequest(BaseModel):
+    cart_item_ids: List[str]
 
 
-class ApplySubstitutionRequest(BaseModel):
-    out_of_stock_sku: str
-    substitute_sku: str
-    current_user_x: int
-    current_user_y: int
-    current_shopping_list_skus: List[str]
-    collected_skus: Optional[List[str]] = None
-
-
-class TrilaterationRequest(BaseModel):
-    rssi_readings: Dict[str, float]
-
-
-class MacroCalcRequest(BaseModel):
-    skus: List[str]
-
-
-# ----------------- Store Layout & Retailer APIs -----------------
-
-@app.get("/api/store/list")
-def get_supported_stores():
-    with open(LAYOUT_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return {
-        "active_store": data.get("active_store"),
-        "supported_retailers": data.get("retailers_supported", []),
-        "stores": [
-            {
-                "id": k,
-                "name": v["store_name"],
-                "retailer": v["retailer"],
-                "address": v["address"],
-                "footprint": v["footprint_type"],
-            }
-            for k, v in data["stores"].items()
-        ],
-    }
-
+# ----------------- Endpoints -----------------
 
 @app.get("/api/store/layout")
-def get_store_layout(store_id: str = "walmart_supercenter_1594"):
-    with open(LAYOUT_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    if store_id not in data["stores"]:
-        store_id = "walmart_supercenter_1594"
-    selected = data["stores"][store_id]
+def get_store_layout():
+    """Returns store geometry, grid dimensions, zones, obstacles, aisles, entrance and checkout."""
     return {
-        "store_id": selected["store_id"],
-        "store_name": selected["store_name"],
-        "retailer": selected["retailer"],
-        "grid_dimensions": selected["grid_dimensions"],
-        "zones": selected["zones"],
-        "obstacles": selected["obstacles"],
-        "entrances": selected["entrances"],
-        "checkouts": selected["checkouts"],
-        "ble_beacons": selected.get("ble_beacons", []),
-        "walkways": selected.get("walkways", []),
+        "store_metadata": full_store_raw["store_metadata"],
+        "entrance": full_store_raw["entrance"],
+        "checkout": full_store_raw["checkout"],
+        "zones": full_store_raw["zones"],
+        "aisles": full_store_raw["aisles"],
+        "obstacles": full_store_raw["obstacles"],
+        "cell_size_feet": CELL_SIZE_FT,
     }
 
 
 @app.get("/api/inventory")
 def get_inventory():
-    return catalog_list
+    """Returns list of all catalog items."""
+    return full_store_raw.get("items", [])
 
-
-@app.get("/api/inventory/search")
-def search_inventory(query: str):
-    item = retailer_adapter.lookup_product(query)
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return retailer_adapter.verify_stock_and_aisle(item.sku)
-
-
-@app.get("/api/barcode/lookup")
-def lookup_barcode(upc: str):
-    """
-    Simulates Target/Walmart barcode scanning lookup from mobile camera.
-    """
-    for item in inventory.values():
-        if item.upc == upc.strip():
-            return {
-                "found": True,
-                "sku": item.sku,
-                "upc": item.upc,
-                "name": item.name,
-                "aisle": item.aisle,
-                "price": item.price,
-                "macros": item.macros,
-            }
-    raise HTTPException(status_code=404, detail=f"No product matches barcode UPC {upc}")
-
-
-# ----------------- Macro Calculation & Running Totals -----------------
-
-@app.post("/api/macros/calculate")
-def calculate_cart_macros(req: MacroCalcRequest):
-    selected = [item for item in catalog_list if item["sku"] in req.skus]
-    totals = MacroEngine.calculate_running_totals(selected)
-    return totals
-
-
-# ----------------- Indoor Positioning & Blue Dot -----------------
-
-@app.post("/api/position/trilaterate")
-def trilaterate_position(req: TrilaterationRequest):
-    raw_x, raw_y, accuracy = positioning_engine.trilaterate_from_rssi(req.rssi_readings)
-    snapped_x, snapped_y = positioning_engine.snap_to_walkable_grid(raw_x, raw_y, store_map.grid)
-    return {
-        "raw_coordinates": {"x": round(raw_x, 2), "y": round(raw_y, 2)},
-        "snapped_coordinates": {"x": snapped_x, "y": snapped_y},
-        "accuracy_radius_feet": round(accuracy, 1),
-        "is_walkable": store_map.is_walkable(snapped_x, snapped_y),
-    }
-
-
-@app.get("/api/position/beacons")
-def get_beacons():
-    return [
-        {
-            "id": b.id,
-            "x": b.x,
-            "y": b.y,
-            "tx_power": b.tx_power,
-            "major": b.major,
-            "minor": b.minor,
-            "zone": b.zone,
-        }
-        for b in positioning_engine.beacons.values()
-    ]
-
-
-# ----------------- Dynamic Routing & Smart Substitutions -----------------
 
 @app.post("/api/route/optimize")
 def optimize_route(req: OptimizeRouteRequest):
-    selected_items = [inventory[sku] for sku in req.skus if sku in inventory]
-    start_pt = (
-        Point(req.current_user_location["x"], req.current_user_location["y"])
-        if req.current_user_location
-        else entrance
-    )
+    """
+    Computes global obstacle-free TSP route starting from Entrance (or current_position)
+    and ending at Checkout, without path clipping or cross-store bouncing.
+    """
+    selected_items = [items_dict[iid] for iid in req.cart_item_ids if iid in items_dict]
 
-    result = tsp_solver.solve_route(
-        origin=start_pt,
-        destination=checkout,
+    # Starting position
+    if req.current_position and len(req.current_position) == 2:
+        cx, cy = req.current_position
+        if not grid.is_walkable(cx, cy):
+            best_pt = (cx, cy)
+            best_dist = float("inf")
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
+                    nx, ny = cx + dx, cy + dy
+                    if grid.is_walkable(nx, ny):
+                        d = math.hypot(dx, dy)
+                        if d < best_dist:
+                            best_dist = d
+                            best_pt = (nx, ny)
+            start_coord = best_pt
+        else:
+            start_coord = (cx, cy)
+    else:
+        start_coord = tuple(entrance_data["coord"])
+
+    checkout_coord = tuple(checkout_data["coord"])
+
+    # Run Global TSP Optimizer
+    tsp_result = tsp_optimizer.solve(
+        start_coord=start_coord,
+        checkout_coord=checkout_coord,
         items=selected_items,
-        use_perishable_weights=req.enforce_perishables_last,
-        collected_skus=set(req.collected_skus or []),
+        perishables_last=req.perishables_last,
     )
-    # Append running macro totals
-    raw_items = [it for it in catalog_list if it["sku"] in req.skus]
-    result["macro_totals"] = MacroEngine.calculate_running_totals(raw_items)
-    return result
 
+    ordered_stops = tsp_result["ordered_stops"]
+    polyline_coords = tsp_result["polyline_coords"]
+    total_dist_ft = tsp_result["total_distance_ft"]
 
-@app.post("/api/substitutions/recommend")
-def recommend_substitutions(req: SubstituteRequest):
-    target = inventory.get(req.out_of_stock_sku)
-    if not target:
-        raise HTTPException(status_code=404, detail="Target SKU not found")
-
-    target_dict = next(it for it in catalog_list if it["sku"] == req.out_of_stock_sku)
-    ranked = MacroEngine.rank_substitutes(
-        target_item=target_dict,
-        catalog=catalog_list,
-        current_user_x=req.current_user_x,
-        current_user_y=req.current_user_y,
-        cell_size_feet=store_map.cell_size_feet,
+    # Compile turn-by-turn navigation steps
+    navigation_steps = TurnByTurnCompiler.compile_instructions(
+        polyline=polyline_coords,
+        ordered_stops=ordered_stops,
+        aisles_list=aisles_list,
     )
+
+    # Compute aisles visited vs. skipped
+    standard_aisles = ["Aisle 1", "Aisle 2", "Aisle 3", "Aisle 4", "Aisle 5", "Aisle 6", "Aisle 7", "Aisle 8"]
+    visited_set = set()
+    for stop in ordered_stops:
+        aisle_name = stop.get("aisle", "")
+        if aisle_name:
+            visited_set.add(aisle_name)
+
+    aisles_visited = [a for a in standard_aisles if a in visited_set]
+    for extra in ["Produce", "Bakery", "Meat Wall", "Dairy Wall", "Frozen 1", "Frozen 2"]:
+        if extra in visited_set and extra not in aisles_visited:
+            aisles_visited.append(extra)
+
+    aisles_skipped = [a for a in standard_aisles if a not in visited_set]
+
+    estimated_minutes = round(total_dist_ft / 180.0, 1)
+
     return {
-        "out_of_stock_sku": req.out_of_stock_sku,
-        "out_of_stock_name": target.name,
-        "current_user_location": {"x": req.current_user_x, "y": req.current_user_y},
-        "recommended_substitutes": ranked,
+        "total_distance_ft": total_dist_ft,
+        "estimated_walk_minutes": estimated_minutes,
+        "aisles_visited": aisles_visited,
+        "aisles_skipped": aisles_skipped,
+        "ordered_stops": ordered_stops,
+        "polyline_coords": polyline_coords,
+        "navigation_steps": navigation_steps,
     }
 
 
-@app.post("/api/route/reroute-substitute")
-def apply_substitution_and_reroute(req: ApplySubstitutionRequest):
+@app.post("/api/meals/suggest")
+def suggest_meals(req: MealSuggestRequest):
     """
-    Swaps out the unavailable item for the user's accepted substitute,
-    and recalculates the remaining tour from the user's exact current Blue Dot location.
+    Matches current cart items against recipes and ranks them by ingredient overlap ratio.
+    Returns matched items, missing items, macros, and prep times.
     """
-    updated_skus = [
-        req.substitute_sku if s == req.out_of_stock_sku else s
-        for s in req.current_shopping_list_skus
-    ]
+    cart_set = set(req.cart_item_ids)
+    recommendations = []
 
-    curr_loc = Point(req.current_user_x, req.current_user_y)
-    selected_items = [inventory[s] for s in updated_skus if s in inventory]
+    for recipe in recipes_db:
+        required_ids = recipe.get("required_item_ids", [])
+        if not required_ids:
+            continue
 
-    new_route = tsp_solver.solve_route(
-        origin=curr_loc,
-        destination=checkout,
-        items=selected_items,
-        use_perishable_weights=True,
-        collected_skus=set(req.collected_skus or []),
-    )
+        matched_ids = [iid for iid in required_ids if iid in cart_set]
+        missing_ids = [iid for iid in required_ids if iid not in cart_set]
 
-    raw_items = [it for it in catalog_list if it["sku"] in updated_skus]
-    new_route["macro_totals"] = MacroEngine.calculate_running_totals(raw_items)
-    new_route["updated_skus"] = updated_skus
-    return new_route
+        overlap_ratio = len(matched_ids) / float(len(required_ids))
+
+        matched_items = [items_dict[iid] for iid in matched_ids if iid in items_dict]
+        missing_items = [items_dict[iid] for iid in missing_ids if iid in items_dict]
+
+        recommendations.append({
+            "recipe_id": recipe["recipe_id"],
+            "title": recipe["title"],
+            "prep_time_min": recipe["prep_time_min"],
+            "description": recipe.get("description", ""),
+            "total_macros_per_serving": recipe.get("total_macros_per_serving", {}),
+            "overlap_ratio": round(overlap_ratio, 2),
+            "matched_count": len(matched_items),
+            "total_required_count": len(required_ids),
+            "matched_items": matched_items,
+            "missing_items": missing_items,
+        })
+
+    # Sort descending by overlap ratio, then matched count
+    recommendations.sort(key=lambda r: (r["overlap_ratio"], r["matched_count"]), reverse=True)
+
+    return {
+        "total_recipes_evaluated": len(recipes_db),
+        "cart_item_count": len(cart_set),
+        "suggestions": recommendations,
+    }

@@ -1,0 +1,283 @@
+[
+  {
+    "recipe_id": "recipe_spaghetti_meat_sauce",
+    "title": "Spaghetti & Hearty Meat Sauce",
+    "prep_time_min": 25,
+    "description": "Classic Italian weeknight dinner with savory browned beef simmered in rich marinara over al dente spaghetti.",
+    "total_macros_per_serving": {
+      "calories": 540,
+      "protein_g": 36.0,
+      "carbs_g": 58.0,
+      "fat_g": 18.0
+    },
+    "required_item_ids": [
+      "item_spaghetti",
+      "item_marinara",
+      "item_ground_beef",
+      "item_parmesan"
+    ]
+  },
+  {
+    "recipe_id": "recipe_chicken_alfredo",
+    "title": "Creamy Chicken Alfredo",
+    "prep_time_min": 25,
+    "description": "Tender golden seared chicken breast slices atop rich fettuccine coated in creamy garlic parmesan alfredo sauce.",
+    "total_macros_per_serving": {
+      "calories": 620,
+      "protein_g": 45.0,
+      "carbs_g": 48.0,
+      "fat_g": 28.0
+    },
+    "required_item_ids": [
+      "item_fettuccine",
+      "item_alfredo_sauce",
+      "item_chicken_breast",
+      "item_parmesan"
+    ]
+  },
+  {
+    "recipe_id": "recipe_beef_tacos",
+    "title": "Crispy Ground Beef Tacos",
+    "prep_time_min": 20,
+    "description": "Crispy corn taco shells stuffed with spiced lean ground beef, melted sharp cheddar, and chunky tomato salsa.",
+    "total_macros_per_serving": {
+      "calories": 480,
+      "protein_g": 34.0,
+      "carbs_g": 32.0,
+      "fat_g": 24.0
+    },
+    "required_item_ids": [
+      "item_ground_beef",
+      "item_taco_seasoning",
+      "item_taco_shells",
+      "item_cheddar",
+      "item_salsa"
+    ]
+  },
+  {
+    "recipe_id": "recipe_chicken_stir_fry",
+    "title": "Chicken & Broccoli Stir-Fry",
+    "prep_time_min": 20,
+    "description": "Sautéed chicken breast strips and crisp broccoli florets tossed in a savory low-sodium soy garlic sauce over jasmine rice.",
+    "total_macros_per_serving": {
+      "calories": 430,
+      "protein_g": 38.0,
+      "carbs_g": 52.0,
+      "fat_g": 7.0
+    },
+    "required_item_ids": [
+      "item_chicken_breast",
+      "item_broccoli",
+      "item_soy_sauce",
+      "item_jasmine_rice",
+      "item_garlic"
+    ]
+  },
+  {
+    "recipe_id": "recipe_chicken_fajitas",
+    "title": "Sheet-Pan Chicken Fajitas",
+    "prep_time_min": 30,
+    "description": "Oven-roasted spiced chicken breast with caramelized bell peppers and onions wrapped in warm flour tortillas with sour cream.",
+    "total_macros_per_serving": {
+      "calories": 510,
+      "protein_g": 41.0,
+      "carbs_g": 46.0,
+      "fat_g": 18.0
+    },
+    "required_item_ids": [
+      "item_chicken_breast",
+      "item_bell_peppers",
+      "item_yellow_onions",
+      "item_taco_seasoning",
+      "item_tortillas",
+      "item_sour_cream"
+    ]
+  },
+  {
+    "recipe_id": "recipe_beef_chili",
+    "title": "Hearty Beef & Black Bean Chili",
+    "prep_time_min": 35,
+    "description": "Slow-simmered ground beef, rich diced tomatoes, black beans, and taco spices topped with shredded cheddar.",
+    "total_macros_per_serving": {
+      "calories": 460,
+      "protein_g": 39.0,
+      "carbs_g": 38.0,
+      "fat_g": 16.0
+    },
+    "required_item_ids": [
+      "item_ground_beef",
+      "item_black_beans",
+      "item_canned_tomatoes",
+      "item_taco_seasoning",
+      "item_cheddar"
+    ]
+  },
+  {
+    "recipe_id": "recipe_breakfast_burritos",
+    "title": "Loaded Bacon & Egg Breakfast Burritos",
+    "prep_time_min": 20,
+    "description": "Scrambled farm-fresh eggs, crispy thick-cut bacon, melted cheddar cheese, and salsa folded in toasted flour tortillas.",
+    "total_macros_per_serving": {
+      "calories": 520,
+      "protein_g": 28.0,
+      "carbs_g": 34.0,
+      "fat_g": 30.0
+    },
+    "required_item_ids": [
+      "item_eggs",
+      "item_bacon",
+      "item_cheddar",
+      "item_tortillas",
+      "item_salsa"
+    ]
+  },
+  {
+    "recipe_id": "recipe_classic_burgers",
+    "title": "All-American Cheddar Cheeseburgers",
+    "prep_time_min": 20,
+    "description": "Juicy 93% lean seared beef patties topped with melted Tillamook cheddar on toasted golden hamburger buns.",
+    "total_macros_per_serving": {
+      "calories": 510,
+      "protein_g": 40.0,
+      "carbs_g": 30.0,
+      "fat_g": 24.0
+    },
+    "required_item_ids": [
+      "item_ground_beef",
+      "item_cheddar",
+      "item_burger_buns",
+      "item_yellow_onions"
+    ]
+  },
+  {
+    "recipe_id": "recipe_chicken_caesar_wrap",
+    "title": "Grilled Chicken Caesar Wraps",
+    "prep_time_min": 15,
+    "description": "Crisp romaine lettuce, sliced grilled chicken breast, parmesan, and creamy Caesar dressing rolled into a soft tortilla.",
+    "total_macros_per_serving": {
+      "calories": 440,
+      "protein_g": 37.0,
+      "carbs_g": 32.0,
+      "fat_g": 18.0
+    },
+    "required_item_ids": [
+      "item_chicken_breast",
+      "item_romaine",
+      "item_caesar_dressing",
+      "item_parmesan",
+      "item_tortillas"
+    ]
+  },
+  {
+    "recipe_id": "recipe_teriyaki_salmon_bowl",
+    "title": "Glazed Teriyaki Salmon Rice Bowl",
+    "prep_time_min": 25,
+    "description": "Pan-seared Atlantic salmon fillet brushed with ginger teriyaki glaze over steamed jasmine rice with crisp broccoli.",
+    "total_macros_per_serving": {
+      "calories": 520,
+      "protein_g": 35.0,
+      "carbs_g": 54.0,
+      "fat_g": 17.0
+    },
+    "required_item_ids": [
+      "item_salmon",
+      "item_teriyaki_sauce",
+      "item_jasmine_rice",
+      "item_broccoli"
+    ]
+  },
+  {
+    "recipe_id": "recipe_greek_salad_chicken",
+    "title": "Mediterranean Greek Salad with Grilled Chicken",
+    "prep_time_min": 20,
+    "description": "Crisp romaine, diced English cucumbers, crumbled feta, and extra virgin olive oil topped with juicy warm chicken breast.",
+    "total_macros_per_serving": {
+      "calories": 390,
+      "protein_g": 38.0,
+      "carbs_g": 12.0,
+      "fat_g": 22.0
+    },
+    "required_item_ids": [
+      "item_chicken_breast",
+      "item_romaine",
+      "item_cucumber",
+      "item_feta",
+      "item_olive_oil"
+    ]
+  },
+  {
+    "recipe_id": "recipe_bbq_pork_chops",
+    "title": "Glazed BBQ Pork Chops with Roasted Potatoes",
+    "prep_time_min": 30,
+    "description": "Seared boneless pork chops glazed in sweet honey BBQ sauce paired with crispy roasted garlic russet potato wedges.",
+    "total_macros_per_serving": {
+      "calories": 490,
+      "protein_g": 36.0,
+      "carbs_g": 52.0,
+      "fat_g": 14.0
+    },
+    "required_item_ids": [
+      "item_pork_chops",
+      "item_bbq_sauce",
+      "item_russet_potatoes",
+      "item_olive_oil"
+    ]
+  },
+  {
+    "recipe_id": "recipe_baked_potato_soup",
+    "title": "Loaded Baked Potato Chowder",
+    "prep_time_min": 35,
+    "description": "Creamy hearty potato soup simmered in savory chicken broth with sour cream, melted cheddar, and crispy bacon crumbles.",
+    "total_macros_per_serving": {
+      "calories": 430,
+      "protein_g": 18.0,
+      "carbs_g": 48.0,
+      "fat_g": 19.0
+    },
+    "required_item_ids": [
+      "item_russet_potatoes",
+      "item_chicken_broth",
+      "item_sour_cream",
+      "item_bacon",
+      "item_cheddar"
+    ]
+  },
+  {
+    "recipe_id": "recipe_chickpea_feta_bowl",
+    "title": "Mediterranean Chickpea & Feta Protein Bowl",
+    "prep_time_min": 15,
+    "description": "Nutrient-packed garbanzo chickpeas, diced cucumber, bell pepper, and rich Greek feta tossed in extra virgin olive oil.",
+    "total_macros_per_serving": {
+      "calories": 380,
+      "protein_g": 16.0,
+      "carbs_g": 42.0,
+      "fat_g": 17.0
+    },
+    "required_item_ids": [
+      "item_chickpeas",
+      "item_cucumber",
+      "item_bell_peppers",
+      "item_feta",
+      "item_olive_oil"
+    ]
+  },
+  {
+    "recipe_id": "recipe_tuscan_sausage_penne",
+    "title": "Creamy Tuscan Sausage Penne",
+    "prep_time_min": 25,
+    "description": "Browned Italian sweet sausage tossed with penne pasta in a silky garlic parmesan cream sauce.",
+    "total_macros_per_serving": {
+      "calories": 610,
+      "protein_g": 32.0,
+      "carbs_g": 56.0,
+      "fat_g": 28.0
+    },
+    "required_item_ids": [
+      "item_penne",
+      "item_italian_sausage",
+      "item_heavy_cream",
+      "item_parmesan",
+      "item_garlic"
+    ]
+  }
+]
