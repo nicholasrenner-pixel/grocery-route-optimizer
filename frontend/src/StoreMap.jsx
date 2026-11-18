@@ -20,7 +20,7 @@ export default function StoreMap({
 }) {
   if (!layout) return null;
 
-  const { grid_dimensions, zones, aisles, obstacles, entrance, checkout } = layout;
+  const { grid_dimensions, zones, obstacles, entrance, checkout } = layout;
   const cols = grid_dimensions?.cols || 50;
   const rows = grid_dimensions?.rows || 34;
 
@@ -29,10 +29,10 @@ export default function StoreMap({
   const trailCoords = polylineCoords ? polylineCoords.slice(0, Math.min(userIdx + 1, polylineCoords.length)) : [];
   const remainingCoords = polylineCoords ? polylineCoords.slice(Math.max(0, userIdx)) : [];
 
-  // Generate directional chevrons along the remaining path (every 6 cells)
+  // Generate directional chevrons along the remaining path
   const chevrons = [];
   if (remainingCoords.length > 2) {
-    for (let i = 2; i < remainingCoords.length - 1; i += 5) {
+    for (let i = 2; i < remainingCoords.length - 1; i += 4) {
       const p1 = remainingCoords[i - 1];
       const p2 = remainingCoords[i];
       const dx = p2[0] - p1[0];
@@ -43,7 +43,7 @@ export default function StoreMap({
   }
 
   return (
-    <div className="store-map-container">
+    <div className="store-map-wrapper">
       <svg
         viewBox={`0 0 ${cols} ${rows}`}
         className="store-map-svg"
@@ -52,7 +52,7 @@ export default function StoreMap({
         <defs>
           {/* Subtle architectural floor pattern */}
           <pattern id="floorGrid" width="2" height="2" patternUnits="userSpaceOnUse">
-            <path d="M 2 0 L 0 0 0 2" fill="none" stroke="#172033" strokeWidth="0.08" />
+            <path d="M 2 0 L 0 0 0 2" fill="none" stroke="#162032" strokeWidth="0.08" />
           </pattern>
 
           {/* User Puck drop shadow */}
@@ -79,9 +79,9 @@ export default function StoreMap({
             width={z.bounds.x2 - z.bounds.x1}
             height={z.bounds.y2 - z.bounds.y1}
             fill={z.color}
-            fillOpacity="0.07"
+            fillOpacity="0.06"
             stroke={z.color}
-            strokeWidth="0.15"
+            strokeWidth="0.14"
             strokeDasharray="0.6,0.6"
             rx="0.5"
           />
@@ -100,7 +100,7 @@ export default function StoreMap({
                 y={obs.y}
                 width={obs.width}
                 height={obs.height}
-                fill={isBarrier ? "#1f2937" : isProduce ? "#064e3b" : isCounter ? "#374151" : "#1e293b"}
+                fill={isBarrier ? "#1e293b" : isProduce ? "#064e3b" : isCounter ? "#374151" : "#1e293b"}
                 stroke={isProduce ? "#059669" : isCounter ? "#4b5563" : "#334155"}
                 strokeWidth="0.22"
                 rx={isBarrier ? "0.1" : "0.4"}
@@ -188,7 +188,7 @@ export default function StoreMap({
             points={trailCoords.map(p => `${p[0]},${p[1]}`).join(' ')}
             fill="none"
             stroke="#475569"
-            strokeWidth="0.7"
+            strokeWidth="0.75"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeDasharray="0.8,0.6"
@@ -201,7 +201,7 @@ export default function StoreMap({
             points={remainingCoords.map(p => `${p[0]},${p[1]}`).join(' ')}
             fill="none"
             stroke="#2563EB"
-            strokeWidth="0.9"
+            strokeWidth="0.95"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -273,7 +273,7 @@ export default function StoreMap({
           <g
             transform={`translate(${userPuck.x}, ${userPuck.y})`}
             filter="url(#puckShadow)"
-            style={{ transition: 'transform 0.18s linear' }}
+            style={{ transition: 'transform 0.16s linear' }}
           >
             {/* White outer puck ring */}
             <circle cx="0" cy="0" r="1.3" fill="#ffffff" stroke="#2563eb" strokeWidth="0.25" />

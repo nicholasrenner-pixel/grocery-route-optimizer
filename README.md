@@ -1,122 +1,105 @@
-# StoreNav Pro: Mobile-First Indoor Grocery Navigation, Macro Optimizer & IPS Engine
+# StoreNav: Precision Indoor Grocery Navigation, Global TSP & Smart Meal Optimizer
 
-A full-stack, mobile-first web application engineered for big-box retailers (**Walmart**, **Target**, and **Costco**) that combines **A\* Pathfinding**, a **Perishable-Constrained Traveling Salesperson Problem (TSP)**, **Indoor Positioning (BLE / PDR / AR)**, and a **Nutritional Macro Tracking & Smart Substitution Engine**.
+StoreNav is a mobile-first, desktop-optimized indoor grocery navigation platform engineered for big-box retailers (Walmart, Target, Costco) that calculates obstacle-free walking routes using **4-Directional Orthogonal A\***, solves a **Global Traveling Salesperson Problem (TSP)** using **Held-Karp Dynamic Programming (N <= 15)** and **2-Opt (N > 15)**, and provides a **Unified Split-Screen / Persistent Drawer** layout displaying both the live interactive Store Map and active Shopping Cart checklist simultaneously.
 
 ---
 
-## System Architecture
+## Unified Workspace Layout (No Screen-Hiding Mode Switches)
 
 ```
-                                +---------------------------------------------+
-                                |          Mobile-First React UI              |
-                                |  - Interactive SVG Floor Plan               |
-                                |  - Real-Time "Blue Dot" (Heading & Pulse)   |
-                                |  - Running Macro & Cart Totals Bar          |
-                                |  - Camera Barcode Scanner Viewfinder        |
-                                |  - Smart Macro Substitution Dialog          |
-                                +----------------------+----------------------+
-                                                       |
-                                              HTTP REST / JSON
-                                                       |
-                                +----------------------v----------------------+
-                                |             FastAPI Backend Engine          |
-                                |  - Multi-Retailer Floorplan Ingestion       |
-                                |  - Target Red Circle & Walmart API Adapters |
-                                |  - Barcode UPC Product Lookup               |
-                                +----------------------+----------------------+
-                                                       |
-        +----------------------------------------------+----------------------------------------------+
-        |                                              |                                              |
-+-------v-------------------------+     +--------------v--------------------+     +-------------------v-------------------+
-|  Indoor Positioning System (IPS)|     |  Perishable-Aware TSP Pathfinder  |     |  Nutritional Macro & Sub Engine       |
-| - BLE Beacon RSSI Log-Distance  |     | - A* Obstacle Avoidance           |     | - Running Calories, Protein, C, F     |
-| - Weighted Trilateration        |     | - Perishables-Last Prioritization |     | - Cosine Similarity Macro Match       |
-| - Pedestrian Dead Reckoning(PDR)|     | - Mid-Trip Dynamic Rerouting      |     | - Distance-Penalized Substitution     |
-| - Topological Aisle Snapping    |     | - Turn-by-Turn Guidance Steps     |     | - Cart Total Cost Aggregation         |
-+---------------------------------+     +-----------------------------------+     +---------------------------------------+
++--------------------------------------------------------------------------------------------------------+
+|                                  StoreNav • Walmart Supercenter #1594                                  |
++-------------------------------------------------------------------+------------------------------------+
+| LEFT PANE: LIVE NAVIGATION & STORE MAP (65% Width)                | RIGHT PANE: ACTIVE CART & MEALS    |
+|                                                                   | (35% Width)                        |
+| +---------------------------------------------------------------+ | +--------------------------------+ |
+| | Google Maps Turn-by-Turn Banner (Deep Green)                  | | | TOTAL: $21.84 • 1,840 kcal     | |
+| | [↰] In 36 ft, Turn left into Aisle 4 — Barilla Spaghetti on R | | | Stop 2 of 5 • 285 ft walk      | |
+| | [Simulate Walk] [1x/2x Speed] [Step Forward] [Off-Route Test] | | +--------------------------------+ |
+| +---------------------------------------------------------------+ | | Active Cart (4) | Meals | Add   | |
+|                                                                   | +--------------------------------+ |
+| [Interactive SVG Architectural Store Floorplan]                   | | #1 Rao's Marinara (Aisle 4)    | |
+| - Base light/dark architectural grid                              | |    [ - 1 + ] [Got It ✓]        | |
+| - 8 Numbered Aisles + Perimeter (Produce, Meat, Dairy, Frozen)    | | #2 Barilla Spaghetti (Aisle 4) | |
+| - Green ENTRANCE and Amber/Red CHECKOUT                           | |    [ - 1 + ] [Got It ✓]        | |
+| - Smooth Blue Polyline (Zero obstacle clipping, chevrons & trail) | | #3 93% Ground Beef (Meat Wall) | |
+| - Numbered Cart Pins ONLY (#1, #2, #3... turns green on check)   | |    [ - 1 + ] [Got It ✓]        | |
+| - Directional User Puck with blue heading cone                    | | #4 Great Value Milk (Dairy)    | |
+|                                                                   | |    [ - 1 + ] [Got It ✓]        | |
++-------------------------------------------------------------------+------------------------------------+
 ```
 
 ---
 
-## Key Modules & Value-Added Features
+## Key Capabilities
 
-### 1. Real-Time Indoor Navigation ("The Blue Dot Experience")
-Standard GPS satellite signals cannot penetrate commercial steel-deck supercenter roofs. StoreNav resolves indoor location using a three-tier sensor fusion architecture:
-- **Bluetooth Low Energy (BLE) Beacon Trilateration**:
-  Uses the Log-Distance Path Loss Model:
-  $$\text{RSSI} = \text{TxPower} - 10 \cdot n \cdot \log_{10}(d) + X_\sigma$$
-  where $n = 2.4$ in metal shelving environments. Inverts RSSI signals across 3+ overhead beacons to solve non-linear least-squares trilateration.
-- **Pedestrian Dead Reckoning (PDR)**:
-  Estimates step count and step lengths ($L = k \cdot \sqrt[4]{a_{\max} - a_{\min}}$) coupled with device gyroscope compass heading.
-- **Topological Aisle Snapping**:
-  Map-matching algorithms project noisy radio coordinates onto walkable aisle centerlines so the blue dot never teleports inside metal shelves.
+### 1. Spatial Grid & 4-Directional A* Pathfinding (`backend/routing.py`)
+- **Grid Scale**: 1 cell = $3.0\text{ ft} \times 3.0\text{ ft}$ (`CELL_SIZE_FT = 3.0`).
+- **Cell Encoding**:
+  - `0`: Walkable main corridor / perimeter racetrack (cost = 1.0).
+  - `1`: Impassable physical obstacle (shelving gondolas, freezer cases, counters) (cost = $\infty$).
+  - `2`: Walkable aisle interior (cost = 1.15 — slight penalty so A* prefers main perimeter/cross-aisles unless actually picking an item, preventing aisle weaving).
+- **Orthogonal Neighbor Expansion**: Strictly Up, Down, Left, Right `[(0, 1), (0, -1), (1, 0), (-1, 0)]`. Diagonal movement is completely disabled, eliminating shelf-corner clipping.
+- **Access vs. Shelf Snapping**: A* routes exclusively between pre-validated `access_coord` tiles in walkable corridors, adjacent to product `shelf_coord` tiles inside shelves.
 
-### 2. Nutritional Macros & Running Cart Totals
-- Real-time tracking of cumulative **Calories**, **Protein (g)**, **Carbohydrates (g)**, **Fats (g)**, and **Fiber (g)**.
-- Running financial total ($) updating as items are collected in the cart.
-- Caloric ratio distribution bar (visualizing % Protein / % Carbs / % Fat).
+### 2. Global Open-Ended TSP Solver (Eliminating Cross-Store Bouncing)
+- **Held-Karp Bitmask Dynamic Programming ($N \le 15$)**:
+  $$\text{dp}[\text{mask}][j] = \min_{i \in \text{mask} \setminus \{j\}} \left( \text{dp}[\text{mask} \setminus \{j\}][i] + \text{dist}[i][j] \right)$$
+  Computes the global minimum-distance sweep from Entrance to Checkout across all selected items.
+- **2-Opt Local Search ($N > 15$)**: Iteratively reverses sub-segments until no 2-edge swap improves the tour.
+- **Perishables-Last Toggle**: Partitions items into non-perishables and perishables (raw meat, dairy, frozen foods), optimizing each partition so ice cream and meats are collected at the very end of the shopping trip.
 
-### 3. Smart Substitutions Engine
-When a shopper marks an item "Out of Stock":
-1. Analyzes in-stock alternatives across the store.
-2. Computes the **Macronutrient Cosine Similarity Vector**:
-   $$\text{Sim}(\vec{u}, \vec{v}) = \frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\| \|\vec{v}\|}$$
-3. Factors in walking distance from the user's active Blue Dot coordinate:
-   $$\text{Score} = 0.55 \cdot \text{MacroSim} + 0.25 \cdot \text{CategoryMatch} + 0.20 \cdot \text{DistanceFactor}$$
-4. Recommends the highest-scoring replacement (e.g. swapping Boneless Chicken Breast for 99% Lean Ground Turkey Breast).
-5. **Dynamic Rerouting**: Instantly replans the remainder of the TSP walking path from the shopper's current location.
+### 3. Collinear Turn-by-Turn Instruction Compiler
+- Compresses straight-line coordinate segments into single legs.
+- Detects $90^\circ$ turns using the cross-product:
+  $$\text{cross} = dx_1 \cdot dy_2 - dy_1 \cdot dx_2$$
+  $\text{cross} > 0 \rightarrow$ `"TURN_RIGHT"`, $\text{cross} < 0 \rightarrow$ `"TURN_LEFT"`.
+- Detects shelf side upon arrival (`"on your left"` vs. `"on your right"`).
 
-### 4. Perishables-Last Dynamic TSP Routing
-Automatically sequences items into 4 prioritized tiers:
-1. **Tier 1 (Early)**: Shelf-stable dry goods, pantry items, ambient produce/bakery.
-2. **Tier 2 (Mid)**: Chilled dairy and refrigerated eggs/cheese.
-3. **Tier 3 (Late)**: Raw meats and seafood (minimizing warming & raw juice exposure).
-4. **Tier 4 (Final)**: Frozen foods and ice cream immediately preceding checkout registers.
+### 4. Smart Meal Ideas & Cold-Start Recommendation Engine (`backend/recipes.json`)
+- Evaluates cart ingredients against 15 dinner/lunch recipes.
+- **Cold-Start Mode**: When the cart is empty, populates at least 8 curated dinner kits (Spaghetti & Meat Sauce, Chicken Alfredo, Beef Tacos, Stir-Fry, Fajitas, Breakfast Burritos, etc.) with 0 in-cart and all ingredients listed under missing.
+- **1-Tap Ingredient Injection**: Clicking `+ Add Missing Ingredients` merges all required items into the cart in a single atomic state update, shows a confirmation toast, and immediately recalculates the optimal route.
 
-### 5. Camera Barcode Scanner Integration
-- Frontend camera viewfinder with animated laser guide.
-- UPC/EAN barcode recognition automatically verifies picked items, crossing them off the spatial map and updating running cart totals.
-
----
-
-## Directory Structure
-
-```
-grocery-route-optimizer/
-├── store_layout_fargo.json         # Multi-retailer layout, BLE beacons, and macro inventory
-├── backend/
-│   ├── indoor_positioning.py       # BLE RSSI path loss, trilateration, PDR, and aisle snapping
-│   ├── macro_engine.py             # Macro aggregation & Cosine similarity substitution
-│   ├── routing_engine.py           # A* pathfinder, Perishable-Aware TSP solver, Retailer API mock
-│   ├── main.py                     # FastAPI REST service
-│   ├── test_suite.py               # Automated verification test suite
-│   └── requirements.txt            # Python dependencies
-└── frontend/
-    ├── package.json
-    ├── public/
-    │   └── index.html              # Mobile viewport boilerplate
-    └── src/
-        ├── App.jsx                 # Mobile UI, Blue Dot SVG map, Macro Bar, Scanner Modal
-        ├── App.css                 # Responsive styles, pulse animations, and modal themes
-        └── index.js
-```
+### 5. Persistent Simultaneous Navigation & Shopping Cart UI
+- **Single Source of Truth**: `cartItems: Record<string, CartEntry>` persisted in `localStorage` so browser reloads never wipe the cart.
+- **Simultaneous Desktop & Mobile View**:
+  - Desktop ($ \ge 768\text{px}$): 65% / 35% side-by-side workspace.
+  - Mobile ($ < 768\text{px}$): Top 52% map + HUD, bottom 48% tabbed active cart drawer.
+- **Interactive Walk & Off-Route Simulator**:
+  - Play / Pause walk simulation with $1\times / 2\times$ speed controls.
+  - Real-time countdown distance in feet.
+  - Off-Route Test button shifts the user puck 2 aisles over and triggers dynamic mid-store rerouting.
 
 ---
 
-## Running the Backend
+## Verification & Test Results
 
+```bash
+python backend/test_routing_math.py
+python backend/test_api_endpoints.py
+python backend/test_all_user_flows.py
+```
+
+- **Mathematical Collision Check**: 0 out of all returned polyline coordinates touch an obstacle (`1`) cell.
+- **Catalog Validation**: All 15 recipes in `backend/recipes.json` map 1-to-1 to verified items in `backend/store_data.json`.
+- **API Tests**: Validated empty cart routing, cold-start meal suggestions, 1-tap recipe injection, and mid-trip off-route dynamic rerouting.
+
+---
+
+## Running Locally
+
+### Backend (Python FastAPI)
 ```powershell
 cd C:\Users\nicho\.gemini\antigravity\scratch\grocery-route-optimizer
 pip install -r backend/requirements.txt
-python backend/test_suite.py
 uvicorn backend.main:app --port 8000 --reload
 ```
 
-## Running the Mobile Frontend
-
+### Frontend (React)
 ```powershell
 cd C:\Users\nicho\.gemini\antigravity\scratch\grocery-route-optimizer\frontend
 npm install
 npm start
 ```
-Open [http://localhost:3000](http://localhost:3000) on your mobile device or mobile viewport emulator.
+Open [http://localhost:3000](http://localhost:3000) in your browser.

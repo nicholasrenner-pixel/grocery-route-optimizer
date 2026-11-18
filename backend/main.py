@@ -1,8 +1,9 @@
 """
-StoreNav Backend API - High-Performance Indoor Navigation & Recipe Suggestion Engine.
+StoreNav Backend API - Unified Route & Meal Optimization Engine.
 Endpoints:
 - POST /api/route/optimize: Global TSP (Held-Karp Bitmask DP / 2-Opt) with orthogonal A* pathfinding.
-- POST /api/meals/suggest: Cart-aware smart meal & recipe recommendation engine.
+- POST /api/meals/suggest: Cart-aware smart recipe matching with cold-start meal kit fallbacks.
+- GET  /api/meals/all: Curated dinner kits with full store inventory metadata.
 - GET  /api/store/layout: Store floorplan, aisles, obstacles, zones, entrance & checkout.
 - GET  /api/inventory: Full grocery catalog with nutritional macros and shelf coordinates.
 """
@@ -27,12 +28,19 @@ from routing import (
 app = FastAPI(
     title="StoreNav Route & Meal Optimizer API",
     description="Precision indoor grocery navigation engine with Held-Karp TSP, obstacle-free A*, and smart recipe suggestions.",
-    version="3.0.0",
+    version="3.1.0",
 )
 
+# Explicit CORS configuration for local frontends
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "*",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,6 +61,18 @@ with open(RECIPES_PATH, "r", encoding="utf-8") as rf:
 with open(STORE_DATA_PATH, "r", encoding="utf-8") as sf:
     full_store_raw = json.load(sf)
 
+# Startup validation: Ensure every recipe item exists in store catalog
+missing_catalog_refs = []
+for recipe in recipes_db:
+    for req_id in recipe.get("required_item_ids", []):
+        if req_id not in items_dict:
+            missing_catalog_refs.append((recipe["recipe_id"], req_id))
+
+if missing_catalog_refs:
+    print(f"CRITICAL WARNING: Missing recipe catalog items on startup: {missing_catalog_refs}")
+else:
+    print(f"Startup Validation Passed: All {len(recipes_db)} recipes match catalog items 1-to-1.")
+
 
 # ----------------- Request / Response Models -----------------
 
@@ -65,6 +85,32 @@ class OptimizeRouteRequest(BaseModel):
 
 class MealSuggestRequest(BaseModel):
     cart_item_ids: List[str]
+
+
+# ----------------- Helper Functions -----------------
+
+def _build_recipe_payload(recipe: Dict, cart_set: set) -> Dict:
+    required_ids = recipe.get("required_item_ids", [])
+    matched_ids = [iid for iid in required_ids if iid in cart_set]
+    missing_ids = [iid for iid in required_ids if iid not in cart_set]
+
+    matched_items = [items_dict[iid] for iid in matched_ids if iid in items_dict]
+    missing_items = [items_dict[iid] for iid in missing_ids if iid in items_dict]
+
+    overlap_ratio = len(matched_items) / float(len(required_ids)) if required_ids else 0.0
+
+    return {
+        "recipe_id": recipe["recipe_id"],
+        "title": recipe["title"],
+        "prep_time_min": recipe["prep_time_min"],
+        "description": recipe.get("description", ""),
+        "total_macros_per_serving": recipe.get("total_macros_per_serving", {}),
+        "overlap_ratio": round(overlap_ratio, 2),
+        "matched_count": len(matched_items),
+        "total_required_count": len(required_ids),
+        "matched_items": matched_items,
+        "missing_items": missing_items,
+    }
 
 
 # ----------------- Endpoints -----------------
@@ -89,6 +135,57 @@ def get_inventory():
     return full_store_raw.get("items", [])
 
 
+@app.get("/api/meals/all")
+def get_all_meals():
+    """Returns all 15 recipes populated with catalog metadata."""
+    cart_set = set()
+    return [_build_recipe_payload(r, cart_set) for r in recipes_db]
+
+
+@app.post("/api/meals/suggest")
+def suggest_meals(req: MealSuggestRequest):
+    """
+    Matches current cart items against recipes and ranks them by ingredient overlap ratio.
+    If the cart is empty or has 0 matches, returns curated 'Quick & Popular Meal Kits'
+    so the meal recommendations section is never blank.
+    """
+    cart_set = set(req.cart_item_ids)
+    all_recommendations = [_build_recipe_payload(r, cart_set) for r in recipes_db]
+
+    if not cart_set:
+        # COLD START MODE: Return popular meal kits with all items listed under missing_items
+        cold_start_order = [
+            "recipe_spaghetti_meat_sauce",
+            "recipe_chicken_alfredo",
+            "recipe_beef_tacos",
+            "recipe_chicken_stir_fry",
+            "recipe_chicken_fajitas",
+            "recipe_breakfast_burritos",
+            "recipe_teriyaki_salmon_bowl",
+            "recipe_classic_burgers",
+        ]
+        cold_start_recipes = sorted(
+            all_recommendations,
+            key=lambda r: cold_start_order.index(r["recipe_id"]) if r["recipe_id"] in cold_start_order else 99,
+        )
+        return {
+            "mode": "cold_start",
+            "total_recipes_evaluated": len(recipes_db),
+            "cart_item_count": 0,
+            "suggestions": cold_start_recipes,
+        }
+
+    # When cart has items: sort by overlap ratio descending, then matched count descending
+    all_recommendations.sort(key=lambda r: (r["overlap_ratio"], r["matched_count"]), reverse=True)
+
+    return {
+        "mode": "active_matching",
+        "total_recipes_evaluated": len(recipes_db),
+        "cart_item_count": len(cart_set),
+        "suggestions": all_recommendations,
+    }
+
+
 @app.post("/api/route/optimize")
 def optimize_route(req: OptimizeRouteRequest):
     """
@@ -97,7 +194,7 @@ def optimize_route(req: OptimizeRouteRequest):
     """
     selected_items = [items_dict[iid] for iid in req.cart_item_ids if iid in items_dict]
 
-    # Starting position
+    # Resolve start coordinate
     if req.current_position and len(req.current_position) == 2:
         cx, cy = req.current_position
         if not grid.is_walkable(cx, cy):
@@ -118,6 +215,29 @@ def optimize_route(req: OptimizeRouteRequest):
         start_coord = tuple(entrance_data["coord"])
 
     checkout_coord = tuple(checkout_data["coord"])
+
+    if not selected_items:
+        # Empty cart: straight path from entrance to checkout
+        path, dist = astar_router.find_shortest_path(start_coord, checkout_coord)
+        return {
+            "total_distance_ft": round(dist),
+            "estimated_walk_minutes": round(dist / 180.0, 1),
+            "aisles_visited": [],
+            "aisles_skipped": ["Aisle 1", "Aisle 2", "Aisle 3", "Aisle 4", "Aisle 5", "Aisle 6", "Aisle 7", "Aisle 8"],
+            "ordered_stops": [],
+            "polyline_coords": [list(pt) for pt in path],
+            "navigation_steps": [
+                {
+                    "step_index": 0,
+                    "maneuver": "ARRIVE",
+                    "instruction": "Proceed directly to Checkout Registers",
+                    "distance_ft": round(dist),
+                    "start_coord": list(start_coord),
+                    "end_coord": list(checkout_coord),
+                    "target_stop_number": None,
+                }
+            ],
+        }
 
     # Run Global TSP Optimizer
     tsp_result = tsp_optimizer.solve(
@@ -163,49 +283,4 @@ def optimize_route(req: OptimizeRouteRequest):
         "ordered_stops": ordered_stops,
         "polyline_coords": polyline_coords,
         "navigation_steps": navigation_steps,
-    }
-
-
-@app.post("/api/meals/suggest")
-def suggest_meals(req: MealSuggestRequest):
-    """
-    Matches current cart items against recipes and ranks them by ingredient overlap ratio.
-    Returns matched items, missing items, macros, and prep times.
-    """
-    cart_set = set(req.cart_item_ids)
-    recommendations = []
-
-    for recipe in recipes_db:
-        required_ids = recipe.get("required_item_ids", [])
-        if not required_ids:
-            continue
-
-        matched_ids = [iid for iid in required_ids if iid in cart_set]
-        missing_ids = [iid for iid in required_ids if iid not in cart_set]
-
-        overlap_ratio = len(matched_ids) / float(len(required_ids))
-
-        matched_items = [items_dict[iid] for iid in matched_ids if iid in items_dict]
-        missing_items = [items_dict[iid] for iid in missing_ids if iid in items_dict]
-
-        recommendations.append({
-            "recipe_id": recipe["recipe_id"],
-            "title": recipe["title"],
-            "prep_time_min": recipe["prep_time_min"],
-            "description": recipe.get("description", ""),
-            "total_macros_per_serving": recipe.get("total_macros_per_serving", {}),
-            "overlap_ratio": round(overlap_ratio, 2),
-            "matched_count": len(matched_items),
-            "total_required_count": len(required_ids),
-            "matched_items": matched_items,
-            "missing_items": missing_items,
-        })
-
-    # Sort descending by overlap ratio, then matched count
-    recommendations.sort(key=lambda r: (r["overlap_ratio"], r["matched_count"]), reverse=True)
-
-    return {
-        "total_recipes_evaluated": len(recipes_db),
-        "cart_item_count": len(cart_set),
-        "suggestions": recommendations,
     }
