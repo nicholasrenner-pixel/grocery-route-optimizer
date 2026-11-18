@@ -1,197 +1,118 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "store_metadata": {
-    "store_id": "walmart_supercenter_1594",
-    "retailer": "Walmart",
-    "store_name": "Walmart Supercenter #1594",
-    "address": "4731 13th Ave S, Fargo, ND 58103",
-    "footprint_type": "standard_supercenter_v2",
-    "grid_dimensions": {
-      "width_cells": 60,
-      "height_cells": 40,
-      "cell_size_feet": 4.0
+  "retailers_supported": ["Walmart", "Target", "Costco"],
+  "active_store": "walmart_supercenter_1594",
+  "stores": {
+    "walmart_supercenter_1594": {
+      "store_id": "walmart_supercenter_1594",
+      "retailer": "Walmart",
+      "store_name": "Walmart Supercenter #1594",
+      "address": "4731 13th Ave S, Fargo, ND 58103",
+      "footprint_type": "standard_supercenter_v2",
+      "grid_dimensions": {
+        "width_cells": 60,
+        "height_cells": 40,
+        "cell_size_feet": 4.0
+      },
+      "entrances": [
+        { "id": "ent_grocery", "name": "Grocery Entrance", "x": 5, "y": 38 },
+        { "id": "ent_general", "name": "General Merchandise Entrance", "x": 52, "y": 38 }
+      ],
+      "checkouts": [
+        { "id": "chk_self_1", "name": "Self Checkout A", "x": 10, "y": 34 },
+        { "id": "chk_reg_1", "name": "Register 1-4", "x": 16, "y": 34 },
+        { "id": "chk_reg_2", "name": "Register 5-8", "x": 22, "y": 34 },
+        { "id": "chk_reg_3", "name": "Register 9-12", "x": 28, "y": 34 }
+      ],
+      "zones": [
+        { "id": "zone_produce", "name": "Fresh Produce", "color": "#10b981", "bounds": { "x1": 2, "y1": 22, "x2": 14, "y2": 32 } },
+        { "id": "zone_bakery", "name": "Bakery & Deli", "color": "#f59e0b", "bounds": { "x1": 2, "y1": 12, "x2": 14, "y2": 20 } },
+        { "id": "zone_meat", "name": "Fresh Meats & Poultry", "color": "#ef4444", "bounds": { "x1": 2, "y1": 2, "x2": 26, "y2": 8 } },
+        { "id": "zone_dairy", "name": "Dairy & Eggs", "color": "#38bdf8", "bounds": { "x1": 28, "y1": 2, "x2": 56, "y2": 7 } },
+        { "id": "zone_grocery_dry", "name": "Dry Grocery & Pantry", "color": "#6366f1", "bounds": { "x1": 16, "y1": 10, "x2": 36, "y2": 30 } },
+        { "id": "zone_frozen", "name": "Frozen Foods", "color": "#06b6d4", "bounds": { "x1": 38, "y1": 10, "x2": 48, "y2": 30 } },
+        { "id": "zone_seasonal", "name": "Seasonal & Featured", "color": "#ec4899", "bounds": { "x1": 50, "y1": 10, "x2": 58, "y2": 30 } }
+      ],
+      "obstacles": [
+        { "id": "shelf_A1", "type": "aisle_shelf", "x": 18, "y": 12, "width": 2, "height": 14, "label": "Aisle A1 (Pasta, Grains)" },
+        { "id": "shelf_A2", "type": "aisle_shelf", "x": 23, "y": 12, "width": 2, "height": 14, "label": "Aisle A2 (Canned Goods, Broth)" },
+        { "id": "shelf_A3", "type": "aisle_shelf", "x": 28, "y": 12, "width": 2, "height": 14, "label": "Aisle A3 (Cereal, Oats, Granola)" },
+        { "id": "shelf_A4", "type": "aisle_shelf", "x": 33, "y": 12, "width": 2, "height": 14, "label": "Aisle A4 (Snacks, Nuts, Chips)" },
+        { "id": "shelf_F1", "type": "frozen_coffin", "x": 40, "y": 12, "width": 2, "height": 14, "label": "Aisle F1 (Frozen Meals & Veg)" },
+        { "id": "shelf_F2", "type": "frozen_coffin", "x": 45, "y": 12, "width": 2, "height": 14, "label": "Aisle F2 (Ice Cream, Treats)" },
+        { "id": "produce_tables", "type": "display_island", "x": 5, "y": 24, "width": 6, "height": 6, "label": "Produce Island" },
+        { "id": "deli_counter", "type": "service_counter", "x": 3, "y": 14, "width": 8, "height": 4, "label": "Deli Service Bar" },
+        { "id": "checkout_barrier", "type": "barrier", "x": 8, "y": 33, "width": 24, "height": 1, "label": "Checkout Lane Partition" }
+      ],
+      "ble_beacons": [
+        { "id": "BLE_ENTRANCE", "x": 5, "y": 37, "txPower": -59, "major": 100, "minor": 1, "zone": "Entrance Area" },
+        { "id": "BLE_PRODUCE", "x": 8, "y": 27, "txPower": -59, "major": 100, "minor": 2, "zone": "Produce" },
+        { "id": "BLE_BAKERY", "x": 8, "y": 16, "txPower": -59, "major": 100, "minor": 3, "zone": "Bakery" },
+        { "id": "BLE_MEAT_LEFT", "x": 10, "y": 5, "txPower": -59, "major": 100, "minor": 4, "zone": "Meat Dept" },
+        { "id": "BLE_MEAT_RIGHT", "x": 22, "y": 5, "txPower": -59, "major": 100, "minor": 5, "zone": "Meat Dept" },
+        { "id": "BLE_DAIRY_LEFT", "x": 34, "y": 5, "txPower": -59, "major": 100, "minor": 6, "zone": "Dairy" },
+        { "id": "BLE_DAIRY_RIGHT", "x": 48, "y": 5, "txPower": -59, "major": 100, "minor": 7, "zone": "Dairy" },
+        { "id": "BLE_CENTER_AISLE_A1", "x": 20, "y": 19, "txPower": -59, "major": 100, "minor": 8, "zone": "Aisle A1-A2" },
+        { "id": "BLE_CENTER_AISLE_A3", "x": 30, "y": 19, "txPower": -59, "major": 100, "minor": 9, "zone": "Aisle A3-A4" },
+        { "id": "BLE_FROZEN", "x": 43, "y": 19, "txPower": -59, "major": 100, "minor": 10, "zone": "Frozen" },
+        { "id": "BLE_CHECKOUT", "x": 18, "y": 32, "txPower": -59, "major": 100, "minor": 11, "zone": "Checkouts" }
+      ],
+      "walkways": [
+        { "name": "Front Action Alley", "orientation": "horizontal", "y": 31, "x_start": 2, "x_end": 58 },
+        { "name": "Back Fresh Perimeter", "orientation": "horizontal", "y": 9, "x_start": 2, "x_end": 58 },
+        { "name": "Center Cross Aisle", "orientation": "horizontal", "y": 19, "x_start": 15, "x_end": 50 },
+        { "name": "Grocery Main Thoroughfare", "orientation": "vertical", "x": 15, "y_start": 2, "y_end": 37 },
+        { "name": "Frozen Transit Corridor", "orientation": "vertical", "x": 37, "y_start": 2, "y_end": 37 }
+      ]
+    },
+    "target_supertarget_1224": {
+      "store_id": "target_supertarget_1224",
+      "retailer": "Target",
+      "store_name": "SuperTarget Store T-1224",
+      "address": "SuperTarget Metro Galleria",
+      "footprint_type": "target_pfresh_format",
+      "grid_dimensions": { "width_cells": 55, "height_cells": 38, "cell_size_feet": 4.0 },
+      "entrances": [{ "id": "ent_target_main", "name": "Target Grocery Doors", "x": 4, "y": 35 }],
+      "checkouts": [{ "id": "chk_target_front", "name": "Target RedCheck Express", "x": 12, "y": 32 }],
+      "zones": [
+        { "id": "zone_presh", "name": "Target PFresh Produce", "color": "#10b981", "bounds": { "x1": 2, "y1": 20, "x2": 14, "y2": 30 } },
+        { "id": "zone_dairy_meat", "name": "Market Dairy & Meats", "color": "#ef4444", "bounds": { "x1": 2, "y1": 2, "x2": 30, "y2": 8 } },
+        { "id": "zone_dry", "name": "Target Pantry Aisles G", "color": "#6366f1", "bounds": { "x1": 16, "y1": 10, "x2": 38, "y2": 28 } },
+        { "id": "zone_frozen", "name": "Target Frozen Wares", "color": "#06b6d4", "bounds": { "x1": 40, "y1": 10, "x2": 52, "y2": 28 } }
+      ],
+      "obstacles": [
+        { "id": "shelf_G1", "type": "aisle_shelf", "x": 18, "y": 12, "width": 2, "height": 13, "label": "Aisle G12" },
+        { "id": "shelf_G2", "type": "aisle_shelf", "x": 24, "y": 12, "width": 2, "height": 13, "label": "Aisle G14" },
+        { "id": "shelf_G3", "type": "aisle_shelf", "x": 30, "y": 12, "width": 2, "height": 13, "label": "Aisle G16" }
+      ],
+      "ble_beacons": []
+    },
+    "costco_wholesale_warehouse": {
+      "store_id": "costco_wholesale_warehouse",
+      "retailer": "Costco",
+      "store_name": "Costco Wholesale Club",
+      "address": "Costco Commercial Blvd",
+      "footprint_type": "warehouse_bulk_layout",
+      "grid_dimensions": { "width_cells": 70, "height_cells": 45, "cell_size_feet": 5.0 },
+      "entrances": [{ "id": "ent_costco_member", "name": "Membership Entry", "x": 5, "y": 42 }],
+      "checkouts": [{ "id": "chk_costco_bulk", "name": "Warehouse Registers 1-16", "x": 15, "y": 38 }],
+      "zones": [
+        { "id": "zone_pallets", "name": "Center Floor Pallet Rows", "color": "#6366f1", "bounds": { "x1": 15, "y1": 12, "x2": 45, "y2": 32 } },
+        { "id": "zone_cold_vault", "name": "Walk-In Dairy & Produce Vault", "color": "#06b6d4", "bounds": { "x1": 48, "y1": 2, "x2": 66, "y2": 20 } },
+        { "id": "zone_meat_rotisserie", "name": "Meat Room & Rotisserie", "color": "#ef4444", "bounds": { "x1": 2, "y1": 2, "x2": 35, "y2": 10 } }
+      ],
+      "obstacles": [
+        { "id": "pallet_block_1", "type": "steel_pallet_rack", "x": 18, "y": 14, "width": 3, "height": 16, "label": "Bay 100 Bulk" },
+        { "id": "pallet_block_2", "type": "steel_pallet_rack", "x": 26, "y": 14, "width": 3, "height": 16, "label": "Bay 200 Bulk" },
+        { "id": "pallet_block_3", "type": "steel_pallet_rack", "x": 34, "y": 14, "width": 3, "height": 16, "label": "Bay 300 Bulk" }
+      ],
+      "ble_beacons": []
     }
   },
-  "entrances": [
-    { "id": "ent_grocery", "name": "Grocery Entrance", "x": 5, "y": 38 },
-    { "id": "ent_general", "name": "General Merchandise Entrance", "x": 50, "y": 38 }
-  ],
-  "checkouts": [
-    { "id": "chk_self_1", "name": "Self Checkout A", "x": 10, "y": 34 },
-    { "id": "chk_reg_1", "name": "Register 1-4", "x": 16, "y": 34 },
-    { "id": "chk_reg_2", "name": "Register 5-8", "x": 22, "y": 34 },
-    { "id": "chk_reg_3", "name": "Register 9-12", "x": 28, "y": 34 }
-  ],
-  "zones": [
-    { "id": "zone_produce", "name": "Fresh Produce", "color": "#10b981", "bounds": { "x1": 2, "y1": 22, "x2": 14, "y2": 32 } },
-    { "id": "zone_bakery", "name": "Bakery & Deli", "color": "#f59e0b", "bounds": { "x1": 2, "y1": 12, "x2": 14, "y2": 20 } },
-    { "id": "zone_meat", "name": "Fresh Meats & Seafood", "color": "#ef4444", "bounds": { "x1": 2, "y1": 2, "x2": 26, "y2": 8 } },
-    { "id": "zone_dairy", "name": "Dairy & Eggs", "color": "#38bdf8", "bounds": { "x1": 28, "y1": 2, "x2": 56, "y2": 7 } },
-    { "id": "zone_grocery_dry", "name": "Dry Grocery & Pantry", "color": "#6366f1", "bounds": { "x1": 16, "y1": 10, "x2": 36, "y2": 30 } },
-    { "id": "zone_frozen", "name": "Frozen Foods", "color": "#06b6d4", "bounds": { "x1": 38, "y1": 10, "x2": 48, "y2": 30 } },
-    { "id": "zone_seasonal", "name": "Seasonal & Featured", "color": "#ec4899", "bounds": { "x1": 50, "y1": 10, "x2": 58, "y2": 30 } }
-  ],
-  "obstacles": [
-    { "id": "shelf_A1", "type": "aisle_shelf", "x": 18, "y": 12, "width": 2, "height": 14, "label": "Aisle A1 (Pasta, Sauce)" },
-    { "id": "shelf_A2", "type": "aisle_shelf", "x": 23, "y": 12, "width": 2, "height": 14, "label": "Aisle A2 (Canned Goods, Soup)" },
-    { "id": "shelf_A3", "type": "aisle_shelf", "x": 28, "y": 12, "width": 2, "height": 14, "label": "Aisle A3 (Cereal, Breakfast)" },
-    { "id": "shelf_A4", "type": "aisle_shelf", "x": 33, "y": 12, "width": 2, "height": 14, "label": "Aisle A4 (Snacks, Chips)" },
-    { "id": "shelf_F1", "type": "frozen_coffin", "x": 40, "y": 12, "width": 2, "height": 14, "label": "Aisle F1 (Frozen Dinners)" },
-    { "id": "shelf_F2", "type": "frozen_coffin", "x": 45, "y": 12, "width": 2, "height": 14, "label": "Aisle F2 (Ice Cream, Desserts)" },
-    { "id": "produce_tables", "type": "display_island", "x": 5, "y": 24, "width": 6, "height": 6, "label": "Produce Island" },
-    { "id": "deli_counter", "type": "service_counter", "x": 3, "y": 14, "width": 8, "height": 4, "label": "Deli Service Bar" },
-    { "id": "checkout_barrier", "type": "barrier", "x": 8, "y": 33, "width": 24, "height": 1, "label": "Checkout Line Lane" }
-  ],
-  "walkways": [
-    { "name": "Front Action Alley", "orientation": "horizontal", "y": 31, "x_start": 2, "x_end": 58 },
-    { "name": "Back Fresh Perimeter", "orientation": "horizontal", "y": 9, "x_start": 2, "x_end": 58 },
-    { "name": "Center Cross Aisle", "orientation": "horizontal", "y": 19, "x_start": 15, "x_end": 50 },
-    { "name": "Grocery Main Thoroughfare", "orientation": "vertical", "x": 15, "y_start": 2, "y_end": 37 },
-    { "name": "Frozen Transit Corridor", "orientation": "vertical", "x": 37, "y_start": 2, "y_end": 37 }
-  ],
   "inventory": [
     {
-      "sku": "WMT-00101",
-      "name": "Barilla Spaghetti Pasta 16oz",
-      "brand": "Barilla",
-      "category": "dry_grocery",
-      "perishable_class": "shelf_stable",
-      "aisle": "Aisle A1",
-      "section": "Bay 3",
-      "coordinates": { "x": 17, "y": 16 },
-      "in_stock": true,
-      "stock_count": 42,
-      "price": 1.78,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00102",
-      "name": "Rao's Homemade Marinara Sauce 24oz",
-      "brand": "Rao's",
-      "category": "dry_grocery",
-      "perishable_class": "shelf_stable",
-      "aisle": "Aisle A1",
-      "section": "Bay 5",
-      "coordinates": { "x": 20, "y": 18 },
-      "in_stock": true,
-      "stock_count": 18,
-      "price": 6.88,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00201",
-      "name": "Campbell's Chunky Clam Chowder 18.8oz",
-      "brand": "Campbell's",
-      "category": "dry_grocery",
-      "perishable_class": "shelf_stable",
-      "aisle": "Aisle A2",
-      "section": "Bay 2",
-      "coordinates": { "x": 22, "y": 14 },
-      "in_stock": true,
-      "stock_count": 35,
-      "price": 2.26,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00301",
-      "name": "General Mills Honey Nut Cheerios 18.8oz",
-      "brand": "General Mills",
-      "category": "dry_grocery",
-      "perishable_class": "shelf_stable",
-      "aisle": "Aisle A3",
-      "section": "Bay 4",
-      "coordinates": { "x": 27, "y": 20 },
-      "in_stock": true,
-      "stock_count": 29,
-      "price": 4.98,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00401",
-      "name": "Lay's Classic Potato Chips Party Size",
-      "brand": "Lay's",
-      "category": "snacks",
-      "perishable_class": "shelf_stable",
-      "aisle": "Aisle A4",
-      "section": "Bay 1",
-      "coordinates": { "x": 32, "y": 13 },
-      "in_stock": true,
-      "stock_count": 50,
-      "price": 4.48,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00501",
-      "name": "Fresh Organic Bananas (Bunch)",
-      "brand": "Chiquita",
-      "category": "produce",
-      "perishable_class": "ambient_fresh",
-      "aisle": "Produce Island 2",
-      "section": "Table A",
-      "coordinates": { "x": 4, "y": 26 },
-      "in_stock": true,
-      "stock_count": 110,
-      "price": 1.48,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00502",
-      "name": "Honeycrisp Apples 3lb Bag",
-      "brand": "Fresh Farms",
-      "category": "produce",
-      "perishable_class": "ambient_fresh",
-      "aisle": "Produce Island 1",
-      "section": "Bin C",
-      "coordinates": { "x": 12, "y": 28 },
-      "in_stock": true,
-      "stock_count": 24,
-      "price": 5.98,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00601",
-      "name": "Fresh Artisan Sourdough Bread",
-      "brand": "Bakery Fresh",
-      "category": "bakery",
-      "perishable_class": "ambient_fresh",
-      "aisle": "Bakery Counter",
-      "section": "Rack 1",
-      "coordinates": { "x": 12, "y": 15 },
-      "in_stock": true,
-      "stock_count": 14,
-      "price": 3.48,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00701",
-      "name": "Great Value Whole Vitamin D Milk 1 Gallon",
-      "brand": "Great Value",
-      "category": "dairy",
-      "perishable_class": "chilled_dairy",
-      "aisle": "Dairy Wall D2",
-      "section": "Door 4",
-      "coordinates": { "x": 32, "y": 4 },
-      "in_stock": true,
-      "stock_count": 65,
-      "price": 3.12,
-      "crowdsourced_adjustments": []
-    },
-    {
-      "sku": "WMT-00702",
-      "name": "Cage-Free Large Grade A Eggs 18ct",
-      "brand": "Eggland's Best",
-      "category": "dairy",
-      "perishable_class": "chilled_dairy",
-      "aisle": "Dairy Wall D1",
-      "section": "Door 2",
-      "coordinates": { "x": 44, "y": 4 },
-      "in_stock": true,
-      "stock_count": 40,
-      "price": 4.18,
-      "crowdsourced_adjustments": []
-    },
-    {
       "sku": "WMT-00801",
+      "upc": "024600008012",
       "name": "USDA Choice Angus Ribeye Steak 1.2lb",
       "brand": "Market Side",
       "category": "meat",
@@ -202,10 +123,29 @@
       "in_stock": true,
       "stock_count": 12,
       "price": 14.50,
-      "crowdsourced_adjustments": []
+      "macros": {
+        "calories": 740,
+        "protein_g": 68.0,
+        "carbs_g": 0.0,
+        "fat_g": 52.0,
+        "fiber_g": 0.0,
+        "serving_size": "4 oz (112g)",
+        "servings_per_container": 4.8,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": [
+        {
+          "sku": "WMT-00804",
+          "name": "99% Lean Ground Turkey Breast 1lb",
+          "aisle": "Meat Wall M3",
+          "reason": "Lean high-protein substitute for raw meat section",
+          "macro_match_score": 0.88
+        }
+      ]
     },
     {
       "sku": "WMT-00802",
+      "upc": "024600008029",
       "name": "Boneless Skinless Chicken Breast 3lb",
       "brand": "Tyson",
       "category": "meat",
@@ -216,10 +156,310 @@
       "in_stock": true,
       "stock_count": 22,
       "price": 9.98,
-      "crowdsourced_adjustments": []
+      "macros": {
+        "calories": 1440,
+        "protein_g": 310.0,
+        "carbs_g": 0.0,
+        "fat_g": 18.0,
+        "fiber_g": 0.0,
+        "serving_size": "4 oz (112g)",
+        "servings_per_container": 12.0,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": [
+        {
+          "sku": "WMT-00804",
+          "name": "99% Lean Ground Turkey Breast 1lb",
+          "aisle": "Meat Wall M3",
+          "reason": "Identical ultra-lean high protein profile (30g protein/4oz)",
+          "macro_match_score": 0.96
+        },
+        {
+          "sku": "WMT-00805",
+          "name": "Wild Caught Atlantic Salmon Fillets 1lb",
+          "aisle": "Meat Wall M4",
+          "reason": "Clean protein with omega-3 fatty acids",
+          "macro_match_score": 0.85
+        }
+      ]
+    },
+    {
+      "sku": "WMT-00804",
+      "upc": "024600008043",
+      "name": "99% Lean Ground Turkey Breast 1lb",
+      "brand": "Butterball",
+      "category": "meat",
+      "perishable_class": "raw_meat_seafood",
+      "aisle": "Meat Wall M3",
+      "section": "Case 8",
+      "coordinates": { "x": 23, "y": 4 },
+      "in_stock": true,
+      "stock_count": 18,
+      "price": 5.48,
+      "macros": {
+        "calories": 480,
+        "protein_g": 112.0,
+        "carbs_g": 0.0,
+        "fat_g": 4.0,
+        "fiber_g": 0.0,
+        "serving_size": "4 oz (112g)",
+        "servings_per_container": 4.0,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": []
+    },
+    {
+      "sku": "WMT-00805",
+      "upc": "024600008050",
+      "name": "Wild Caught Atlantic Salmon Fillets 1lb",
+      "brand": "Great Value",
+      "category": "meat",
+      "perishable_class": "raw_meat_seafood",
+      "aisle": "Meat Wall M4",
+      "section": "Seafood Bar",
+      "coordinates": { "x": 25, "y": 4 },
+      "in_stock": true,
+      "stock_count": 14,
+      "price": 10.98,
+      "macros": {
+        "calories": 840,
+        "protein_g": 88.0,
+        "carbs_g": 0.0,
+        "fat_g": 48.0,
+        "fiber_g": 0.0,
+        "serving_size": "4 oz (112g)",
+        "servings_per_container": 4.0,
+        "macro_category": "healthy_fat"
+      },
+      "smart_substitutes": []
+    },
+    {
+      "sku": "WMT-00101",
+      "upc": "024600001015",
+      "name": "Barilla Spaghetti Pasta 16oz",
+      "brand": "Barilla",
+      "category": "dry_grocery",
+      "perishable_class": "shelf_stable",
+      "aisle": "Aisle A1",
+      "section": "Bay 3",
+      "coordinates": { "x": 17, "y": 16 },
+      "in_stock": true,
+      "stock_count": 42,
+      "price": 1.78,
+      "macros": {
+        "calories": 1600,
+        "protein_g": 56.0,
+        "carbs_g": 336.0,
+        "fat_g": 8.0,
+        "fiber_g": 24.0,
+        "serving_size": "2 oz (56g)",
+        "servings_per_container": 8.0,
+        "macro_category": "complex_carb"
+      },
+      "smart_substitutes": [
+        {
+          "sku": "WMT-00103",
+          "name": "Banza Chickpea Rotini Protein Pasta 8oz",
+          "aisle": "Aisle A1",
+          "reason": "Gluten-free, 2x protein (14g) & 3x fiber per serving",
+          "macro_match_score": 0.91
+        }
+      ]
+    },
+    {
+      "sku": "WMT-00103",
+      "upc": "024600001039",
+      "name": "Banza Chickpea Rotini Protein Pasta 8oz",
+      "brand": "Banza",
+      "category": "dry_grocery",
+      "perishable_class": "shelf_stable",
+      "aisle": "Aisle A1",
+      "section": "Bay 6",
+      "coordinates": { "x": 19, "y": 20 },
+      "in_stock": true,
+      "stock_count": 25,
+      "price": 3.98,
+      "macros": {
+        "calories": 760,
+        "protein_g": 44.0,
+        "carbs_g": 128.0,
+        "fat_g": 12.0,
+        "fiber_g": 32.0,
+        "serving_size": "2 oz (56g)",
+        "servings_per_container": 4.0,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": []
+    },
+    {
+      "sku": "WMT-00701",
+      "upc": "024600007015",
+      "name": "Great Value Whole Vitamin D Milk 1 Gallon",
+      "brand": "Great Value",
+      "category": "dairy",
+      "perishable_class": "chilled_dairy",
+      "aisle": "Dairy Wall D2",
+      "section": "Door 4",
+      "coordinates": { "x": 32, "y": 4 },
+      "in_stock": true,
+      "stock_count": 65,
+      "price": 3.12,
+      "macros": {
+        "calories": 2400,
+        "protein_g": 128.0,
+        "carbs_g": 192.0,
+        "fat_g": 128.0,
+        "fiber_g": 0.0,
+        "serving_size": "1 cup (240ml)",
+        "servings_per_container": 16.0,
+        "macro_category": "chilled_dairy"
+      },
+      "smart_substitutes": [
+        {
+          "sku": "WMT-00703",
+          "name": "Fairlife Ultra-Filtered 2% Milk 52oz",
+          "aisle": "Dairy Wall D3",
+          "reason": "50% more protein (13g/cup) and 50% less sugar",
+          "macro_match_score": 0.93
+        }
+      ]
+    },
+    {
+      "sku": "WMT-00702",
+      "upc": "024600007022",
+      "name": "Cage-Free Large Grade A Eggs 18ct",
+      "brand": "Eggland's Best",
+      "category": "dairy",
+      "perishable_class": "chilled_dairy",
+      "aisle": "Dairy Wall D1",
+      "section": "Door 2",
+      "coordinates": { "x": 44, "y": 4 },
+      "in_stock": true,
+      "stock_count": 40,
+      "price": 4.18,
+      "macros": {
+        "calories": 1260,
+        "protein_g": 108.0,
+        "carbs_g": 0.0,
+        "fat_g": 90.0,
+        "fiber_g": 0.0,
+        "serving_size": "1 egg (50g)",
+        "servings_per_container": 18.0,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": [
+        {
+          "sku": "WMT-00704",
+          "name": "100% Liquid Egg Whites 32oz Carton",
+          "aisle": "Dairy Wall D1",
+          "reason": "Pure protein with 0g fat and 0g cholesterol",
+          "macro_match_score": 0.89
+        }
+      ]
+    },
+    {
+      "sku": "WMT-00703",
+      "upc": "024600007039",
+      "name": "Fairlife Ultra-Filtered 2% Milk 52oz",
+      "brand": "Fairlife",
+      "category": "dairy",
+      "perishable_class": "chilled_dairy",
+      "aisle": "Dairy Wall D3",
+      "section": "Door 6",
+      "coordinates": { "x": 38, "y": 4 },
+      "in_stock": true,
+      "stock_count": 28,
+      "price": 4.48,
+      "macros": {
+        "calories": 845,
+        "protein_g": 84.5,
+        "carbs_g": 39.0,
+        "fat_g": 29.25,
+        "fiber_g": 0.0,
+        "serving_size": "1 cup (240ml)",
+        "servings_per_container": 6.5,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": []
+    },
+    {
+      "sku": "WMT-00704",
+      "upc": "024600007046",
+      "name": "100% Liquid Egg Whites 32oz Carton",
+      "brand": "Bob Evans",
+      "category": "dairy",
+      "perishable_class": "chilled_dairy",
+      "aisle": "Dairy Wall D1",
+      "section": "Door 1",
+      "coordinates": { "x": 42, "y": 4 },
+      "in_stock": true,
+      "stock_count": 19,
+      "price": 4.98,
+      "macros": {
+        "calories": 500,
+        "protein_g": 100.0,
+        "carbs_g": 10.0,
+        "fat_g": 0.0,
+        "fiber_g": 0.0,
+        "serving_size": "3 tbsp (46g)",
+        "servings_per_container": 20.0,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": []
+    },
+    {
+      "sku": "WMT-00501",
+      "upc": "024600005011",
+      "name": "Fresh Organic Bananas (Bunch)",
+      "brand": "Chiquita",
+      "category": "produce",
+      "perishable_class": "ambient_fresh",
+      "aisle": "Produce Island 2",
+      "section": "Table A",
+      "coordinates": { "x": 4, "y": 26 },
+      "in_stock": true,
+      "stock_count": 110,
+      "price": 1.48,
+      "macros": {
+        "calories": 525,
+        "protein_g": 6.5,
+        "carbs_g": 135.0,
+        "fat_g": 1.5,
+        "fiber_g": 15.0,
+        "serving_size": "1 medium banana (118g)",
+        "servings_per_container": 5.0,
+        "macro_category": "complex_carb"
+      },
+      "smart_substitutes": []
+    },
+    {
+      "sku": "WMT-00502",
+      "upc": "024600005028",
+      "name": "Honeycrisp Apples 3lb Bag",
+      "brand": "Fresh Farms",
+      "category": "produce",
+      "perishable_class": "ambient_fresh",
+      "aisle": "Produce Island 1",
+      "section": "Bin C",
+      "coordinates": { "x": 12, "y": 28 },
+      "in_stock": true,
+      "stock_count": 24,
+      "price": 5.98,
+      "macros": {
+        "calories": 570,
+        "protein_g": 3.0,
+        "carbs_g": 150.0,
+        "fat_g": 1.5,
+        "fiber_g": 27.0,
+        "serving_size": "1 medium apple (182g)",
+        "servings_per_container": 6.0,
+        "macro_category": "complex_carb"
+      },
+      "smart_substitutes": []
     },
     {
       "sku": "WMT-00901",
+      "upc": "024600009019",
       "name": "DiGiorno Rising Crust Pepperoni Pizza",
       "brand": "DiGiorno",
       "category": "frozen",
@@ -230,10 +470,21 @@
       "in_stock": true,
       "stock_count": 31,
       "price": 6.48,
-      "crowdsourced_adjustments": []
+      "macros": {
+        "calories": 1920,
+        "protein_g": 84.0,
+        "carbs_g": 216.0,
+        "fat_g": 84.0,
+        "fiber_g": 12.0,
+        "serving_size": "1/6 pizza (130g)",
+        "servings_per_container": 6.0,
+        "macro_category": "treat"
+      },
+      "smart_substitutes": []
     },
     {
       "sku": "WMT-00902",
+      "upc": "024600009026",
       "name": "Ben & Jerry's Chocolate Fudge Brownie Pint",
       "brand": "Ben & Jerry's",
       "category": "frozen",
@@ -244,21 +495,50 @@
       "in_stock": true,
       "stock_count": 19,
       "price": 4.68,
-      "crowdsourced_adjustments": []
+      "macros": {
+        "calories": 1140,
+        "protein_g": 16.0,
+        "carbs_g": 140.0,
+        "fat_g": 60.0,
+        "fiber_g": 8.0,
+        "serving_size": "2/3 cup (142g)",
+        "servings_per_container": 3.0,
+        "macro_category": "treat"
+      },
+      "smart_substitutes": [
+        {
+          "sku": "WMT-00903",
+          "name": "Halo Top Sea Salt Caramel Protein Pint",
+          "aisle": "Aisle F2",
+          "reason": "High protein, low calorie ice cream substitute (320 cal vs 1140 cal)",
+          "macro_match_score": 0.82
+        }
+      ]
     },
     {
-      "sku": "WMT-01001",
-      "name": "Bounty Select-A-Size Paper Towels 6 Double Rolls",
-      "brand": "Bounty",
-      "category": "household",
-      "perishable_class": "shelf_stable",
-      "aisle": "Aisle S1",
-      "section": "Endcap Front",
-      "coordinates": { "x": 52, "y": 28 },
+      "sku": "WMT-00903",
+      "upc": "024600009033",
+      "name": "Halo Top Sea Salt Caramel Protein Pint",
+      "brand": "Halo Top",
+      "category": "frozen",
+      "perishable_class": "frozen_goods",
+      "aisle": "Aisle F2",
+      "section": "Door 14",
+      "coordinates": { "x": 48, "y": 24 },
       "in_stock": true,
-      "stock_count": 28,
-      "price": 11.98,
-      "crowdsourced_adjustments": []
+      "stock_count": 15,
+      "price": 4.98,
+      "macros": {
+        "calories": 320,
+        "protein_g": 20.0,
+        "carbs_g": 64.0,
+        "fat_g": 8.0,
+        "fiber_g": 16.0,
+        "serving_size": "2/3 cup (95g)",
+        "servings_per_container": 3.0,
+        "macro_category": "high_protein"
+      },
+      "smart_substitutes": []
     }
   ]
 }

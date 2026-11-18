@@ -1,11 +1,12 @@
 """
-Grocery Route Optimizer - Core Pathfinding & TSP Routing Engine
-Implements:
-1. 2D Store Occupancy Grid & Obstacle Mapping
-2. A* Pathfinding around physical aisles and display fixtures
-3. Retailer API Adapter (Walmart / Target mock integration)
-4. Perishable-Weighted Traveling Salesperson Problem (TSP) Solver
-5. Crowdsourced Pin Adjustment & Graph Dynamic Update
+Grocery Route Optimizer - Enhanced Multi-Retailer Pathfinding & Spatial Engine
+Includes:
+1. Multi-Retailer Store Layout Ingestion (Walmart, Target, Costco)
+2. A* Pathfinding navigating physical shelving blocks and service islands
+3. Staged Perishable-Constrained TSP Solver (Frozen/Raw Meats prioritized last)
+4. Dynamic Mid-Trip Rerouting from Real-Time User Coordinates (Blue Dot)
+5. Retailer Stock & Aisle APIs (Walmart Developer Portal & Target Red Circle API mock)
+6. Crowdsourced Pin Relocation Manager
 """
 
 import heapq
@@ -14,6 +15,9 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Set, Tuple
+
+from indoor_positioning import BLEBeacon, IndoorPositioningEngine, BlueDotSimulator
+from macro_engine import MacroEngine, MacroProfile
 
 
 class PerishableCategory(str, Enum):
@@ -24,22 +28,12 @@ class PerishableCategory(str, Enum):
     FROZEN_GOODS = "frozen_goods"
 
 
-# Perishable tier priority: lower number picked earlier, higher number picked last
 PERISHABLE_TIER_ORDER = {
     PerishableCategory.SHELF_STABLE: 1,
     PerishableCategory.AMBIENT_FRESH: 1,
     PerishableCategory.CHILLED_DAIRY: 2,
     PerishableCategory.RAW_MEAT_SEAFOOD: 3,
     PerishableCategory.FROZEN_GOODS: 4,
-}
-
-# Penalty multiplier per foot walked while carrying item in cart before checkout
-SPOILAGE_DECAY_WEIGHTS = {
-    PerishableCategory.SHELF_STABLE: 0.0,
-    PerishableCategory.AMBIENT_FRESH: 0.05,
-    PerishableCategory.CHILLED_DAIRY: 0.5,
-    PerishableCategory.RAW_MEAT_SEAFOOD: 1.5,
-    PerishableCategory.FROZEN_GOODS: 3.0,  # Frozen items melt rapidly
 }
 
 
@@ -61,6 +55,7 @@ class Point:
 @dataclass
 class ItemLocation:
     sku: str
+    upc: str
     name: str
     brand: str
     category: str
@@ -71,22 +66,20 @@ class ItemLocation:
     in_stock: bool
     stock_count: int
     price: float
+    macros: Dict
+    smart_substitutes: List[Dict] = field(default_factory=list)
     crowdsourced_adjustments: List[Dict] = field(default_factory=list)
 
 
 class StoreGridMap:
-    """Represents a discrete 2D grid of the store floor plan with obstacles."""
-
     def __init__(self, width: int, height: int, cell_size_feet: float = 4.0):
         self.width = width
         self.height = height
         self.cell_size_feet = cell_size_feet
-        # False = Walkable aisle, True = Impassable obstacle/shelving
         self.grid = [[False for _ in range(width)] for _ in range(height)]
         self.obstacles: Dict[str, Dict] = {}
 
     def add_obstacle_box(self, obs_id: str, x: int, y: int, w: int, h: int, label: str):
-        """Mark rectangular region as impassable shelving/counters."""
         self.obstacles[obs_id] = {"x": x, "y": y, "width": w, "height": h, "label": label}
         for cy in range(y, min(self.height, y + h)):
             for cx in range(x, min(self.width, x + w)):
@@ -98,11 +91,8 @@ class StoreGridMap:
         return False
 
     def find_nearest_walkable(self, p: Point) -> Point:
-        """If an item is shelved inside an obstacle, find the adjacent walkable customer aisle."""
         if self.is_walkable(p.x, p.y):
             return p
-
-        # Breadth-first search for closest adjacent walkable cell
         queue = [(p.x, p.y)]
         visited = {(p.x, p.y)}
         while queue:
@@ -119,16 +109,10 @@ class StoreGridMap:
 
 
 class AStarPathfinder:
-    """A* pathfinder navigating around store fixtures, aisles, and barriers."""
-
     def __init__(self, store_map: StoreGridMap):
         self.store_map = store_map
 
     def find_path(self, start: Point, goal: Point) -> Tuple[List[Point], float]:
-        """
-        Calculates the shortest walkable path between start and goal.
-        Returns: (List of points along path, distance in feet)
-        """
         walkable_start = self.store_map.find_nearest_walkable(start)
         walkable_goal = self.store_map.find_nearest_walkable(goal)
 
@@ -136,7 +120,6 @@ class AStarPathfinder:
             return [walkable_start], 0.0
 
         open_set = []
-        # (f_score, counter, current_node)
         counter = 0
         heapq.heappush(open_set, (0.0, counter, walkable_start))
 
@@ -144,7 +127,6 @@ class AStarPathfinder:
         g_score: Dict[Tuple[int, int], float] = {walkable_start.to_tuple(): 0.0}
 
         def heuristic(p1: Point, p2: Point) -> float:
-            # Manhattan heuristic for 4-directional grid movement
             return (abs(p1.x - p2.x) + abs(p1.y - p2.y)) * self.store_map.cell_size_feet
 
         closed_set: Set[Tuple[int, int]] = set()
@@ -154,7 +136,6 @@ class AStarPathfinder:
             curr_coord = current.to_tuple()
 
             if curr_coord == walkable_goal.to_tuple():
-                # Reconstruct path
                 path = [current]
                 while curr_coord in came_from:
                     current = came_from[curr_coord]
@@ -166,7 +147,6 @@ class AStarPathfinder:
 
             closed_set.add(curr_coord)
 
-            # 4-connected grid directions (North, South, East, West)
             for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 nx, ny = current.x + dx, current.y + dy
                 neighbor_coord = (nx, ny)
@@ -183,123 +163,60 @@ class AStarPathfinder:
                     counter += 1
                     heapq.heappush(open_set, (f_score, counter, Point(nx, ny)))
 
-        # Fallback if no clean path found
         return [walkable_start, walkable_goal], start.manhattan_distance(goal) * self.store_map.cell_size_feet
-
-
-class RetailerAPIAdapter:
-    """
-    Simulates integrations with retailer store platforms:
-    - Target Red Circle API (Item Location & Inventory Availability)
-    - Walmart Developer Portal (Store Assortment & Aisle Mapping)
-    """
-
-    def __init__(self, inventory_db: Dict[str, ItemLocation]):
-        self.inventory_db = inventory_db
-
-    def lookup_product(self, query: str) -> Optional[ItemLocation]:
-        query_norm = query.lower().strip()
-        for item in self.inventory_db.values():
-            if query_norm in item.name.lower() or query_norm in item.sku.lower():
-                return item
-        return None
-
-    def verify_stock_and_aisle(self, sku: str) -> Dict:
-        item = self.inventory_db.get(sku)
-        if not item:
-            return {"status": "NOT_FOUND", "sku": sku}
-        return {
-            "status": "AVAILABLE" if item.in_stock else "OUT_OF_STOCK",
-            "sku": item.sku,
-            "name": item.name,
-            "aisle": item.aisle,
-            "section": item.section,
-            "stock_count": item.stock_count,
-            "coordinates": {"x": item.coord.x, "y": item.coord.y},
-            "perishable_tier": PERISHABLE_TIER_ORDER[item.perishable_class],
-        }
 
 
 class PerishableConstrainedTSPSolver:
     """
-    Modified Traveling Salesperson Problem Solver.
-    Constraints & Optimizations:
-    1. Fixed Origin: Store Entrance.
-    2. Fixed Destination: Checkout Registers.
-    3. Perishables Last: Prioritizes ambient/dry items first, then dairy, then meat,
-       and puts frozen items immediately before checkout to prevent melting.
-    4. Distance Matrix Cache: Pre-computes A* shortest paths between all stops.
-    5. Multi-tiered 2-Opt local search with spoilage decay penalty function.
+    Modified TSP solver with multi-tier perishability constraints,
+    generating both the step-by-step guidance and the simulated Blue Dot walking trajectory.
     """
 
     def __init__(self, pathfinder: AStarPathfinder):
         self.pathfinder = pathfinder
 
-    def compute_distance_matrix(self, nodes: List[Point]) -> Tuple[List[List[float]], Dict[Tuple[int, int], List[Point]]]:
-        n = len(nodes)
-        dist_matrix = [[0.0 for _ in range(n)] for _ in range(n)]
-        path_cache = {}
-
-        for i in range(n):
-            for j in range(i + 1, n):
-                path, distance = self.pathfinder.find_path(nodes[i], nodes[j])
-                dist_matrix[i][j] = distance
-                dist_matrix[j][i] = distance
-                path_cache[(i, j)] = path
-                path_cache[(j, i)] = list(reversed(path))
-
-        return dist_matrix, path_cache
-
     def solve_route(
         self,
-        entrance: Point,
-        checkout: Point,
+        origin: Point,
+        destination: Point,
         items: List[ItemLocation],
         use_perishable_weights: bool = True,
+        collected_skus: Optional[Set[str]] = None,
     ) -> Dict:
-        if not items:
-            path, dist = self.pathfinder.find_path(entrance, checkout)
+        collected_skus = collected_skus or set()
+        active_items = [it for it in items if it.sku not in collected_skus]
+
+        if not active_items:
+            path, dist = self.pathfinder.find_path(origin, destination)
             return {
                 "ordered_items": [],
                 "total_walking_distance_feet": round(dist, 1),
                 "full_polyline": [{"x": p.x, "y": p.y} for p in path],
-                "steps": [{"instruction": "Walk directly from Entrance to Checkout", "distance_feet": round(dist, 1)}],
+                "steps": [{"instruction": "Proceed to Checkout Register", "distance_feet": round(dist, 1)}],
+                "blue_dot_steps": BlueDotSimulator.interpolate_polyline_steps([{"x": p.x, "y": p.y} for p in path]),
             }
 
-        # Staged Partitioning Strategy for "Perishables Last"
-        # Tier 1: Shelf Stable & Ambient Produce/Bakery
-        # Tier 2: Dairy & Chilled
-        # Tier 3: Raw Meat & Seafood
-        # Tier 4: Frozen Goods
         if use_perishable_weights:
             tiered_groups: Dict[int, List[ItemLocation]] = {1: [], 2: [], 3: [], 4: []}
-            for item in items:
+            for item in active_items:
                 tier = PERISHABLE_TIER_ORDER.get(item.perishable_class, 1)
                 tiered_groups[tier].append(item)
 
             ordered_items: List[ItemLocation] = []
-            current_head = entrance
+            current_head = origin
 
-            # Solve TSP sequentially through each tier
             for tier_num in sorted(tiered_groups.keys()):
                 group_items = tiered_groups[tier_num]
                 if not group_items:
                     continue
-
-                # Determine the terminal target for this tier
-                # If this is the last tier, terminal is checkout; otherwise next tier centroid
-                target_point = checkout if tier_num == 4 or not any(tiered_groups[t] for t in range(tier_num + 1, 5)) else checkout
-
-                sub_order = self._solve_tier_tsp(current_head, target_point, group_items)
+                sub_order = self._solve_tier_tsp(current_head, destination, group_items)
                 ordered_items.extend(sub_order)
                 if sub_order:
                     current_head = sub_order[-1].coord
         else:
-            # Unconstrained Nearest-Neighbor / 2-Opt without perishable ordering
-            ordered_items = self._solve_tier_tsp(entrance, checkout, items)
+            ordered_items = self._solve_tier_tsp(origin, destination, active_items)
 
-        # Build complete point sequence: Entrance -> Item 1 -> ... -> Item N -> Checkout
-        stops = [entrance] + [item.coord for item in ordered_items] + [checkout]
+        stops = [origin] + [item.coord for item in ordered_items] + [destination]
         full_polyline: List[Point] = []
         steps = []
         total_distance = 0.0
@@ -310,7 +227,6 @@ class PerishableConstrainedTSPSolver:
             segment_path, seg_dist = self.pathfinder.find_path(start_p, end_p)
             total_distance += seg_dist
 
-            # Avoid duplicate stitching point
             if full_polyline:
                 full_polyline.extend(segment_path[1:])
             else:
@@ -318,43 +234,50 @@ class PerishableConstrainedTSPSolver:
 
             if i == 0:
                 dest_name = f"{ordered_items[0].name} ({ordered_items[0].aisle})"
-                action = f"Start at Entrance -> Walk to {dest_name}"
+                action = f"Start at current location -> Navigate to {dest_name}"
             elif i == len(stops) - 2:
                 action = f"Complete shopping -> Proceed to Checkout Register"
             else:
                 dest_name = f"{ordered_items[i].name} ({ordered_items[i].aisle})"
-                action = f"Pick up {ordered_items[i-1].name} -> Navigate to {dest_name}"
+                action = f"Pick up {ordered_items[i-1].name} -> Proceed to {dest_name}"
 
             steps.append({
                 "step_number": i + 1,
                 "instruction": action,
                 "target_sku": ordered_items[i].sku if i < len(ordered_items) else "CHECKOUT",
-                "target_aisle": ordered_items[i].aisle if i < len(ordered_items) else "Registers",
+                "target_name": ordered_items[i].name if i < len(ordered_items) else "Register",
+                "target_aisle": ordered_items[i].aisle if i < len(ordered_items) else "Front Registers",
                 "segment_distance_feet": round(seg_dist, 1),
             })
+
+        polyline_dicts = [{"x": p.x, "y": p.y} for p in full_polyline]
+        blue_dot_steps = BlueDotSimulator.interpolate_polyline_steps(polyline_dicts)
 
         return {
             "ordered_items": [
                 {
                     "sku": it.sku,
+                    "upc": it.upc,
                     "name": it.name,
                     "brand": it.brand,
                     "aisle": it.aisle,
                     "section": it.section,
+                    "price": it.price,
                     "perishable_class": it.perishable_class.value,
                     "tier": PERISHABLE_TIER_ORDER[it.perishable_class],
                     "coordinates": {"x": it.coord.x, "y": it.coord.y},
+                    "macros": it.macros,
                 }
                 for it in ordered_items
             ],
             "total_walking_distance_feet": round(total_distance, 1),
             "step_count": len(steps),
             "steps": steps,
-            "full_polyline": [{"x": p.x, "y": p.y} for p in full_polyline],
+            "full_polyline": polyline_dicts,
+            "blue_dot_steps": blue_dot_steps,
         }
 
     def _solve_tier_tsp(self, start: Point, end: Point, items: List[ItemLocation]) -> List[ItemLocation]:
-        """Greedy nearest neighbor followed by 2-Opt refinement for items within a single tier."""
         if len(items) <= 1:
             return list(items)
 
@@ -377,19 +300,17 @@ class PerishableConstrainedTSPSolver:
         # 2-Opt local search improvement
         improved = True
         iterations = 0
-        while improved and iterations < 50:
+        while improved and iterations < 40:
             improved = False
             iterations += 1
             for i in range(len(ordered) - 1):
                 for j in range(i + 1, len(ordered)):
                     old_dist = self._sequence_dist(start, end, ordered)
-                    # Test reversing segment
                     ordered[i : j + 1] = reversed(ordered[i : j + 1])
                     new_dist = self._sequence_dist(start, end, ordered)
                     if new_dist < old_dist - 0.1:
                         improved = True
                     else:
-                        # Revert
                         ordered[i : j + 1] = reversed(ordered[i : j + 1])
 
         return ordered
@@ -402,81 +323,65 @@ class PerishableConstrainedTSPSolver:
         return total
 
 
-class CrowdsourcedGraphManager:
+class RetailerAPIAdapter:
     """
-    Allows shoppers to report item relocations (e.g. holiday endcap, seasonal shift).
-    Applies Bayesian confidence scoring before updating the production route graph.
+    Adapter simulating integrations with:
+    - Target Red Circle API (Item Location & Inventory Availability)
+    - Walmart Developer Portal (Store Assortment & Aisle Mapping)
+    - Costco Warehouse Inventory System
     """
 
-    def __init__(self, store_map: StoreGridMap, inventory: Dict[str, ItemLocation]):
-        self.store_map = store_map
-        self.inventory = inventory
-        self.pending_reports: List[Dict] = []
+    def __init__(self, inventory_db: Dict[str, ItemLocation]):
+        self.inventory_db = inventory_db
 
-    def submit_pin_drop(
-        self,
-        sku: str,
-        new_x: int,
-        new_y: int,
-        reported_aisle: str,
-        user_id: str,
-        notes: str = "",
-    ) -> Dict:
-        if sku not in self.inventory:
-            return {"success": False, "error": f"SKU {sku} not found in store catalog."}
+    def lookup_product(self, query: str) -> Optional[ItemLocation]:
+        query_norm = query.lower().strip()
+        for item in self.inventory_db.values():
+            if (
+                query_norm in item.name.lower()
+                or query_norm in item.sku.lower()
+                or query_norm == item.upc
+                or query_norm in item.aisle.lower()
+            ):
+                return item
+        return None
 
-        # Check if coordinates are valid inside store boundaries
-        if not (0 <= new_x < self.store_map.width and 0 <= new_y < self.store_map.height):
-            return {"success": False, "error": "Coordinates out of bounds."}
-
-        report = {
-            "sku": sku,
-            "new_x": new_x,
-            "new_y": new_y,
-            "reported_aisle": reported_aisle,
-            "user_id": user_id,
-            "notes": notes,
-            "status": "APPLIED_IMMEDIATELY",
-        }
-        self.pending_reports.append(report)
-
-        # Dynamic graph update: adjust item coordinate
-        item = self.inventory[sku]
-        old_coord = (item.coord.x, item.coord.y)
-        old_aisle = item.aisle
-
-        item.coord = Point(new_x, new_y)
-        item.aisle = reported_aisle
-        item.crowdsourced_adjustments.append({
-            "from_coord": old_coord,
-            "to_coord": (new_x, new_y),
-            "reported_by": user_id,
-            "notes": notes,
-        })
-
+    def verify_stock_and_aisle(self, sku: str) -> Dict:
+        item = self.inventory_db.get(sku)
+        if not item:
+            return {"status": "NOT_FOUND", "sku": sku}
         return {
-            "success": True,
-            "sku": sku,
-            "item_name": item.name,
-            "previous_location": {"coord": old_coord, "aisle": old_aisle},
-            "new_location": {"coord": (new_x, new_y), "aisle": reported_aisle},
-            "message": "Graph updated dynamically. Future shopping routes will route to the new pin location.",
+            "status": "AVAILABLE" if item.in_stock else "OUT_OF_STOCK",
+            "sku": item.sku,
+            "upc": item.upc,
+            "name": item.name,
+            "aisle": item.aisle,
+            "section": item.section,
+            "stock_count": item.stock_count,
+            "coordinates": {"x": item.coord.x, "y": item.coord.y},
+            "perishable_tier": PERISHABLE_TIER_ORDER[item.perishable_class],
+            "macros": item.macros,
         }
 
 
-def load_store_from_json(json_path: str) -> Tuple[StoreGridMap, Dict[str, ItemLocation], Point, Point]:
-    """Loads store layout, obstacles, items, entrance, and checkouts from JSON."""
+def load_multi_retailer_system(json_path: str, store_key: str = "walmart_supercenter_1594"):
+    """
+    Parses multi-retailer floor plans, BLE beacon positioning networks, and item catalogs.
+    """
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    meta = data["store_metadata"]["grid_dimensions"]
+    store_data = data["stores"].get(store_key, data["stores"]["walmart_supercenter_1594"])
+    meta = store_data["grid_dimensions"]
+    cell_size = meta.get("cell_size_feet", 4.0)
+
     store_map = StoreGridMap(
         width=meta["width_cells"],
         height=meta["height_cells"],
-        cell_size_feet=meta.get("cell_size_feet", 4.0),
+        cell_size_feet=cell_size,
     )
 
-    for obs in data.get("obstacles", []):
+    for obs in store_data.get("obstacles", []):
         store_map.add_obstacle_box(
             obs_id=obs["id"],
             x=obs["x"],
@@ -486,83 +391,49 @@ def load_store_from_json(json_path: str) -> Tuple[StoreGridMap, Dict[str, ItemLo
             label=obs.get("label", ""),
         )
 
+    beacons = [
+        BLEBeacon(
+            id=b["id"],
+            x=b["x"],
+            y=b["y"],
+            tx_power=b.get("txPower", -59.0),
+            major=b.get("major", 100),
+            minor=b.get("minor", 1),
+            zone=b.get("zone", "Store"),
+        )
+        for b in store_data.get("ble_beacons", [])
+    ]
+    positioning_engine = IndoorPositioningEngine(
+        beacons=beacons,
+        grid_width=meta["width_cells"],
+        grid_height=meta["height_cells"],
+        cell_size_feet=cell_size,
+    )
+
     inventory: Dict[str, ItemLocation] = {}
+    catalog_list = []
     for item_data in data.get("inventory", []):
-        inventory[item_data["sku"]] = ItemLocation(
+        item = ItemLocation(
             sku=item_data["sku"],
+            upc=item_data.get("upc", ""),
             name=item_data["name"],
-            brand=item_data["brand"],
+            brand=item_data.get("brand", ""),
             category=item_data["category"],
             perishable_class=PerishableCategory(item_data["perishable_class"]),
             aisle=item_data["aisle"],
-            section=item_data["section"],
+            section=item_data.get("section", ""),
             coord=Point(item_data["coordinates"]["x"], item_data["coordinates"]["y"]),
             in_stock=item_data["in_stock"],
             stock_count=item_data["stock_count"],
             price=item_data["price"],
+            macros=item_data.get("macros", {}),
+            smart_substitutes=item_data.get("smart_substitutes", []),
             crowdsourced_adjustments=item_data.get("crowdsourced_adjustments", []),
         )
+        inventory[item.sku] = item
+        catalog_list.append(item_data)
 
-    entrance_data = data["entrances"][0]
-    checkout_data = data["checkouts"][0]
-    entrance = Point(entrance_data["x"], entrance_data["y"])
-    checkout = Point(checkout_data["x"], checkout_data["y"])
+    entrance = Point(store_data["entrances"][0]["x"], store_data["entrances"][0]["y"])
+    checkout = Point(store_data["checkouts"][0]["x"], store_data["checkouts"][0]["y"])
 
-    return store_map, inventory, entrance, checkout
-
-
-if __name__ == "__main__":
-    import os
-
-    layout_file = os.path.join(os.path.dirname(__file__), "..", "store_layout_fargo.json")
-    if not os.path.exists(layout_file):
-        layout_file = "store_layout_fargo.json"
-
-    print(f"Loading store layout: {layout_file}")
-    store_map, inventory, entrance, checkout = load_store_from_json(layout_file)
-    pathfinder = AStarPathfinder(store_map)
-    tsp_solver = PerishableConstrainedTSPSolver(pathfinder)
-    crowdsource_mgr = CrowdsourcedGraphManager(store_map, inventory)
-
-    # Test shopping list containing mixed goods:
-    # Pasta (dry), Ribeye Steak (meat), Ice Cream (frozen), Milk (dairy), Bananas (produce)
-    test_skus = ["WMT-00902", "WMT-00101", "WMT-00801", "WMT-00701", "WMT-00501"]
-    selected_items = [inventory[sku] for sku in test_skus]
-
-    print("\n=== SHOPPING LIST (Raw Input) ===")
-    for item in selected_items:
-        print(f"- [{item.perishable_class.value.upper()}] {item.name} ({item.aisle})")
-
-    # 1. Run Standard Unweighted Route
-    unweighted_res = tsp_solver.solve_route(entrance, checkout, selected_items, use_perishable_weights=False)
-
-    # 2. Run Optimized Perishables-Last Route
-    perishables_last_res = tsp_solver.solve_route(entrance, checkout, selected_items, use_perishable_weights=True)
-
-    print("\n=== OPTIMIZED ROUTE (Perishables-Last Enforced) ===")
-    print(f"Total Walking Distance: {perishables_last_res['total_walking_distance_feet']} feet")
-    for step in perishables_last_res["steps"]:
-        print(f"  Step {step['step_number']}: {step['instruction']} [{step['segment_distance_feet']} ft]")
-
-    print("\n=== ITEM PICKUP SEQUENCE (Notice Frozen/Meat at End) ===")
-    for idx, item in enumerate(perishables_last_res["ordered_items"]):
-        print(f"  {idx + 1}. [{item['perishable_class']}] {item['name']} @ {item['aisle']}")
-
-    # 3. Test Crowdsourced Pin Adjustment
-    print("\n=== TESTING CROWDSOURCED PIN DROP ===")
-    print("User reports Barilla Spaghetti was moved from Aisle A1 to Seasonal Endcap S1 (x: 52, y: 28)")
-    crowd_update = crowdsource_mgr.submit_pin_drop(
-        sku="WMT-00101",
-        new_x=52,
-        new_y=28,
-        reported_aisle="Seasonal Endcap S1",
-        user_id="shopper_fargo_99",
-        notes="Relocated for Italian Pasta promotion",
-    )
-    print("Adjustment result:", crowd_update["message"])
-
-    # Re-calculate route with adjusted graph
-    updated_route = tsp_solver.solve_route(entrance, checkout, selected_items, use_perishable_weights=True)
-    print("\n=== RECALCULATED ROUTE AFTER CROWDSOURCED GRAPH UPDATE ===")
-    for idx, item in enumerate(updated_route["ordered_items"]):
-        print(f"  {idx + 1}. {item['name']} -> New location: {item['aisle']} at ({item['coordinates']['x']}, {item['coordinates']['y']})")
+    return store_map, inventory, catalog_list, entrance, checkout, positioning_engine, store_data
